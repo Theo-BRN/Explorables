@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments (Poetry can create these in-project)
+.venv/
+venv/
+.env
+
+# Jupyter / VS Code interactive cells
+.ipynb_checkpoints/
+
+# VS Code (keeps shared settings, ignores personal ones)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Editor/OS leftovers
+*.swp
+*~
