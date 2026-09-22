@@ -1,97 +1,483 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Splitting n! into r! and (n−r)!</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --paper: #f5f7fa; --ink: #1d2733; --muted: #5b6878;
-    --r: #2f6fb3; --nr: #b0422e; --rule: #d5dce5;
-    box-sizing: border-box;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --paper: #141a21; --ink: #e3e8ee; --muted: #93a0b0;
-      --r: #7fb1ea; --nr: #ec8a74; --rule: #2c3643;
-    }
-  }
-  body {
-    margin: 0; background: var(--paper); color: var(--ink);
-    font: 1.0625rem/1.65 "Source Serif 4", Georgia, serif;
-  }
-  main { max-width: 44rem; margin: 0 auto; padding: 3rem 1.25rem; }
-  h1 { font-weight: 600; font-size: 1.9rem; line-height: 1.2; margin: 0 0 .75rem; }
-  p { color: var(--muted); margin: 0 0 1.5rem; }
-  .stage {
-    overflow-x: auto; padding: 2.5rem 0 2rem; margin: 1rem 0 2rem;
-    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
-    font-size: 1.35rem; text-align: center;
-  }
-  .controls { display: grid; gap: 1.25rem; }
-  label { display: grid; grid-template-columns: 5rem 1fr 2rem; align-items: center; gap: 1rem; }
-  label span:last-child { text-align: right; font-weight: 600; }
-  input[type=range] { width: 100%; accent-color: var(--ink); }
-  input[type=range]:focus-visible { outline: 2px solid var(--r); outline-offset: 4px; }
-  #result { margin-top: 2rem; font-size: 1.15rem; overflow-x: auto; }
-</style>
-</head>
-<body>
-<main>
-  <h1>Where r! and (n−r)! live inside n!</h1>
-  <p>Both are tails of the same product. Move r and watch one brace grow while the other shrinks. Dividing n! by both leaves the number of ways to choose r items from n.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Permutations, Combinations and intuition for the factorials</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #f5f7fa;
+        --ink: #1d2733;
+        --muted: #5b6878;
+        --r: #2f6fb3;
+        --nr: #b0422e;
+        --rule: #d5dce5;
+        --tint: #dde8f5;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #141a21;
+          --ink: #e3e8ee;
+          --muted: #93a0b0;
+          --r: #7fb1ea;
+          --nr: #ec8a74;
+          --rule: #2c3643;
+          --tint: #1f3149;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          1.0625rem/1.65 "Source Serif 4",
+          Georgia,
+          serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 3rem 1.25rem;
+      }
+      h1 {
+        font-weight: 600;
+        font-size: 1.9rem;
+        line-height: 1.2;
+        margin: 0 0 0.75rem;
+      }
+      h2 {
+        font-weight: 600;
+        font-size: 1.35rem;
+        line-height: 1.3;
+        margin: 0 0 0.5rem;
+      }
+      section {
+        margin-top: 3.5rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--rule);
+      }
+      p {
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
 
-  <div class="stage" id="stage"></div>
+      .nline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.6rem;
+        font-size: 1.15rem;
+      }
+      .nline input {
+        width: 3.2rem;
+        font: inherit;
+        font-weight: 600;
+        text-align: center;
+        color: var(--ink);
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 0.1rem 0.2rem;
+      }
+      .nline input:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+      .nline small {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .nline button {
+        margin-left: auto;
+      }
+      .concl {
+        color: var(--ink);
+        margin: 1rem 0 0;
+      }
 
-  <div class="controls">
-    <label><span>n</span><input id="n" type="range" min="3" max="10" value="8"><span id="nv"></span></label>
-    <label><span>r</span><input id="r" type="range" min="1" max="7" value="6"><span id="rv"></span></label>
-  </div>
+      .stage {
+        overflow-x: auto;
+        padding: 2.5rem 0 2rem;
+        margin: 1rem 0 2rem;
+        font-size: 1.35rem;
+        text-align: center;
+      }
+      label {
+        display: grid;
+        grid-template-columns: 5rem 1fr 2rem;
+        align-items: center;
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+      label span:last-child {
+        text-align: right;
+        font-weight: 600;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--ink);
+      }
+      input[type="range"]:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 4px;
+      }
+      .formula {
+        margin-top: 1.5rem;
+        font-size: 1.1rem;
+        overflow-x: auto;
+      }
 
-  <div id="result"></div>
-</main>
+      svg.pic {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin: 0.5rem 0;
+      }
+      .pic .ring {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 1.5;
+      }
+      .pic .ring.sub {
+        stroke: var(--r);
+      }
+      .pic .dot {
+        fill: var(--tint);
+      }
+      .pic .lt {
+        fill: var(--muted);
+        font:
+          17px "Source Serif 4",
+          Georgia,
+          serif;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
+      .pic .lt.on {
+        fill: var(--r);
+        font-weight: 600;
+      }
+      .pic .box {
+        fill: var(--tint);
+        stroke: var(--r);
+        stroke-width: 1.5;
+      }
+      .pic .pos {
+        fill: var(--muted);
+        font:
+          12px "Source Serif 4",
+          Georgia,
+          serif;
+        text-anchor: middle;
+      }
+      .pic .arrow {
+        stroke: var(--muted);
+        stroke-width: 1.5;
+        fill: none;
+      }
+      .pic .head {
+        fill: var(--muted);
+      }
+      .pic .cap {
+        fill: var(--ink);
+        font:
+          15px "Source Serif 4",
+          Georgia,
+          serif;
+      }
+      .pic .cap tspan.num {
+        font-weight: 600;
+        fill: var(--r);
+      }
+      button {
+        font: inherit;
+        font-size: 0.95rem;
+        color: var(--ink);
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 0.3rem 0.8rem;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--muted);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
 
-<script>
-  const nEl = document.getElementById('n'), rEl = document.getElementById('r');
-  const fact = k => k <= 1 ? 1 : k * fact(k - 1);
-  const terms = (hi, lo) => Array.from({length: hi - lo + 1}, (_, i) => hi - i).join('\\cdot ');
-  const cR = s => `\\color{var(--r)}{${s}}`;
+      footer {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 0 1.25rem 3rem;
+      }
+      footer a {
+        color: var(--muted);
+      }
+      footer a:hover {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Permutations and Combinations</h1>
 
-  function render() {
-    const n = +nEl.value;
-    rEl.max = n - 1;
-    if (+rEl.value > n - 1) rEl.value = n - 1;
-    const r = +rEl.value, m = n - r;
-    document.getElementById('nv').textContent = n;
-    document.getElementById('rv').textContent = r;
+      <div class="nline">
+        <span>n =</span>
+        <input
+          id="n"
+          type="number"
+          min="2"
+          max="12"
+          value="8"
+          inputmode="numeric"
+          aria-label="n, number of items"
+        />
+        <small>(2 to 12)</small>
+        <button class="shuffle" type="button">Pick different letters</button>
+      </div>
 
-    // Both braces cover a tail (k down to 1), so the smaller always nests inside the larger.
-    const big = Math.max(r, m), small = Math.min(r, m);
-    const outside = big < n ? terms(n, big + 1) + '\\cdot ' : '';
-    const between = big > small ? terms(big, small + 1) + '\\cdot ' : '';
-    const inner = terms(small, 1);
-    const top = `\\color{#R}{\\overbrace{\\color{#INK}{X}}^{${r}!}}`;
-    const bot = `\\color{#NR}{\\underbrace{\\color{#INK}{X}}_{(${n}-${r})!}}`;
-    const [outerT, innerT] = r >= m ? [top, bot] : [bot, top];
-    let tex = `${n}! = ${outside}` + outerT.replace('X', between + innerT.replace('X', inner));
+      <section>
+        <h2>How many permutations?</h2>
+        <svg
+          id="picP"
+          class="pic"
+          viewBox="0 0 640 250"
+          role="img"
+          aria-label="A set of n letters, with an arrow to r numbered slots filled in order"
+        ></svg>
+        <label
+          ><span>r</span
+          ><input id="rP" type="range" min="1" max="7" value="3" /><span
+            id="rPv"
+          ></span
+        ></label>
+        <div class="formula" id="fP"></div>
+        <p class="concl" id="sP"></p>
+      </section>
 
-    const css = getComputedStyle(document.documentElement);
-    const col = v => css.getPropertyValue(v).trim();
-    tex = tex.replaceAll('#R', col('--r')).replaceAll('#NR', col('--nr')).replaceAll('#INK', col('--ink'));
-    katex.render(tex, document.getElementById('stage'), {displayMode: true, throwOnError: false});
+      <section>
+        <h2>How many combinations?</h2>
+        <svg
+          id="picC"
+          class="pic"
+          viewBox="0 0 640 250"
+          role="img"
+          aria-label="A set of n letters, with an arrow to a smaller set of r chosen letters"
+        ></svg>
+        <label
+          ><span>r</span
+          ><input id="rC" type="range" min="1" max="7" value="3" /><span
+            id="rCv"
+          ></span
+        ></label>
+        <div class="formula" id="fC"></div>
+        <p class="concl" id="sC"></p>
+      </section>
 
-    const res = `\\binom{${n}}{${r}} = \\frac{${n}!}{${r}!\\,(${n}-${r})!} = \\frac{${fact(n)}}{${fact(r)}\\cdot ${fact(m)}} = ${fact(n) / (fact(r) * fact(m))}`;
-    katex.render(res, document.getElementById('result'), {displayMode: true, throwOnError: false});
-  }
-  nEl.addEventListener('input', render);
-  rEl.addEventListener('input', render);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
-  render();
-</script>
-</body>
+      <section>
+        <h2>Symmetrical denominators</h2>
+        <div class="stage" id="stage"></div>
+        <label
+          ><span>r</span
+          ><input id="rT" type="range" min="1" max="7" value="3" /><span
+            id="rTv"
+          ></span
+        ></label>
+        <div class="formula" id="fT"></div>
+      </section>
+    </main>
+
+    <footer><a href="../">Back to index</a></footer>
+
+    <script>
+      const nEl = document.getElementById("n");
+      const sliders = ["rP", "rC", "rT"].map((id) =>
+        document.getElementById(id),
+      );
+      const [rPEl, rCEl, rTEl] = sliders;
+      const fact = (k) => (k <= 1 ? 1 : k * fact(k - 1));
+      const terms = (hi, lo) =>
+        Array.from({ length: hi - lo + 1 }, (_, i) => hi - i).join("\\cdot ");
+      const tex = (el, s) =>
+        katex.render(s, document.getElementById(el), {
+          displayMode: true,
+          throwOnError: false,
+        });
+      const plural = (k, word) => (k === 1 ? word : word + "s");
+      // Same shape for both: notation = n!/(...) with (n-r)! shown, then simplified, then numbers, then result
+      const eqP = (r) =>
+        `{}^{${n}}P_{${r}} = \\frac{${n}!}{(${n}-${r})!} = \\frac{${n}!}{${n - r}!} = \\frac{${fact(n)}}{${fact(n - r)}} = ${fact(n) / fact(n - r)}`;
+      const eqC = (r) =>
+        `{}^{${n}}C_{${r}} = \\binom{${n}}{${r}} = \\frac{${n}!}{${r}!\\,(${n}-${r})!} = \\frac{${n}!}{${r}!\\,${n - r}!} = \\frac{${fact(n)}}{${fact(r)}\\cdot ${fact(n - r)}} = ${fact(n) / (fact(r) * fact(n - r))}`;
+      const LETTERS = "ABCDEFGHIJKL";
+      const NMIN = 2,
+        NMAX = 12;
+      let n = 8,
+        order = []; // random permutation of letter indices; the first r are the ones picked
+
+      const shuffled = (k) => {
+        const a = Array.from({ length: k }, (_, i) => i);
+        for (let i = k - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+
+      function readN(commit) {
+        const v = parseInt(nEl.value, 10);
+        if (Number.isInteger(v) && v >= NMIN && v <= NMAX) {
+          if (v !== n) {
+            n = v;
+            order = shuffled(n);
+          }
+        } else if (commit) nEl.value = n; // restore last good value on blur/enter
+      }
+
+      // Shared left half of both pictures: the full set with picked letters highlighted
+      function setCircle(r) {
+        const on = new Set(order.slice(0, r));
+        const cx = 115,
+          cy = 125,
+          R = 100,
+          rr = n <= 6 ? 55 : 68;
+        let s = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+        s += `<circle class="ring" cx="${cx}" cy="${cy}" r="${R}"/>`;
+        for (let i = 0; i < n; i++) {
+          const a = -Math.PI / 2 + (2 * Math.PI * i) / n,
+            x = cx + rr * Math.cos(a),
+            y = cy + rr * Math.sin(a);
+          if (on.has(i))
+            s += `<circle class="dot" cx="${x}" cy="${y}" r="14"/>`;
+          s += `<text class="lt${on.has(i) ? " on" : ""}" x="${x}" y="${y}">${LETTERS[i]}</text>`;
+        }
+        return s;
+      }
+
+      function drawP(r, P) {
+        let s = setCircle(r);
+        const bx = 300,
+          size = Math.min(44, 330 / r),
+          by = 125 - size / 2;
+        order.slice(0, r).forEach((idx, i) => {
+          const x = bx + i * size;
+          s += `<rect class="box" x="${x}" y="${by}" width="${size}" height="${size}"/>`;
+          s += `<text class="lt on" x="${x + size / 2}" y="${by + size / 2}">${LETTERS[idx]}</text>`;
+          s += `<text class="pos" x="${x + size / 2}" y="${by + size + 16}">${i + 1}</text>`;
+        });
+        s += `<path class="arrow" marker-end="url(#ah)" d="M225,125 L${bx - 10},125"/>`;
+        document.getElementById("picP").innerHTML = s;
+      }
+
+      function drawC(r, C) {
+        let s = setCircle(r);
+        const sx = 400,
+          sy = 125,
+          sr = r === 1 ? 24 : Math.min(72, 26 + r * 5),
+          ir = sr - 20;
+        s += `<circle class="ring sub" cx="${sx}" cy="${sy}" r="${sr}"/>`;
+        [...order.slice(0, r)]
+          .sort((a, b) => a - b)
+          .forEach((idx, i) => {
+            const a = -Math.PI / 2 + (2 * Math.PI * i) / r;
+            const x = r === 1 ? sx : sx + ir * Math.cos(a),
+              y = r === 1 ? sy : sy + ir * Math.sin(a);
+            s += `<text class="lt on" x="${x}" y="${y}">${LETTERS[idx]}</text>`;
+          });
+        s += `<path class="arrow" marker-end="url(#ah)" d="M225,125 L${sx - sr - 10},125"/>`;
+        document.getElementById("picC").innerHTML = s;
+      }
+
+      function drawTails(r) {
+        const m = n - r;
+        // Both braces cover a tail (k down to 1), so the smaller always nests inside the larger.
+        const big = Math.max(r, m),
+          small = Math.min(r, m);
+        const outside = big < n ? terms(n, big + 1) + "\\cdot " : "";
+        const between = big > small ? terms(big, small + 1) + "\\cdot " : "";
+        const inner = terms(small, 1);
+        const top = `\\color{#R}{\\overbrace{\\color{#INK}{X}}^{${r}!}}`;
+        const bot = `\\color{#NR}{\\underbrace{\\color{#INK}{X}}_{(${n}-${r})!}}`;
+        const [outerT, innerT] = r >= m ? [top, bot] : [bot, top];
+        let t =
+          `${n}! = ${outside}` +
+          outerT.replace("X", between + innerT.replace("X", inner));
+        const css = getComputedStyle(document.documentElement);
+        const col = (v) => css.getPropertyValue(v).trim();
+        t = t
+          .replaceAll("#R", col("--r"))
+          .replaceAll("#NR", col("--nr"))
+          .replaceAll("#INK", col("--ink"));
+        tex("stage", t);
+        tex("fT", eqC(r));
+      }
+
+      function render() {
+        sliders.forEach((s) => {
+          s.max = n - 1;
+          if (+s.value > n - 1) s.value = n - 1;
+        });
+        const rP = +rPEl.value,
+          rC = +rCEl.value,
+          rT = +rTEl.value;
+        document.getElementById("rPv").textContent = rP;
+        document.getElementById("rCv").textContent = rC;
+        document.getElementById("rTv").textContent = rT;
+
+        const P = fact(n) / fact(n - rP);
+        drawP(rP, P);
+        tex("fP", eqP(rP));
+        document.getElementById("sP").textContent =
+          `There ${P === 1 ? "is" : "are"} ${P} ${plural(P, "way")} to arrange ${rP} ${plural(rP, "item")} in order, chosen from a group of ${n} unique items.`;
+
+        const C = fact(n) / (fact(rC) * fact(n - rC));
+        drawC(rC, C);
+        tex("fC", eqC(rC));
+        document.getElementById("sC").textContent =
+          `There ${C === 1 ? "is" : "are"} ${C} ${plural(C, "way")} to choose ${rC} ${plural(rC, "item")} from a group of ${n} unique items, when order doesn't matter.`;
+
+        drawTails(rT);
+      }
+
+      nEl.addEventListener("input", () => {
+        readN(false);
+        render();
+      });
+      nEl.addEventListener("change", () => {
+        readN(true);
+        render();
+      });
+      sliders.forEach((s) => s.addEventListener("input", render));
+      document.querySelectorAll(".shuffle").forEach((b) =>
+        b.addEventListener("click", () => {
+          order = shuffled(n);
+          render();
+        }),
+      );
+      matchMedia("(prefers-color-scheme: dark)").addEventListener(
+        "change",
+        render,
+      );
+      order = shuffled(n);
+      render();
+    </script>
+  </body>
 </html>
