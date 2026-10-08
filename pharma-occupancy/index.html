@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"
+    />
+    <title>Receptor Occupancy</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Layout: left = graph, sliders, live equation; right = static membrane schematic. Stacks on phones. */
+      :root {
+        --paper: #f5f7fa;
+        --ink: #1d2733;
+        --muted: #5b6878;
+        --r: #2f6fb3;
+        --nr: #b0422e;
+        --rule: #d5dce5;
+        --tint: #dde8f5;
+        --lipid: #c9d2dd;
+        --cyto: #eaeef3;
+        --serif: "Source Serif 4", Georgia, serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #141a21;
+          --ink: #e3e8ee;
+          --muted: #93a0b0;
+          --r: #7fb1ea;
+          --nr: #ec8a74;
+          --rule: #2c3643;
+          --tint: #1f3149;
+          --lipid: #34404e;
+          --cyto: #19212a;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --paper: #141a21;
+        --ink: #e3e8ee;
+        --muted: #93a0b0;
+        --r: #7fb1ea;
+        --nr: #ec8a74;
+        --rule: #2c3643;
+        --tint: #1f3149;
+        --lipid: #34404e;
+        --cyto: #19212a;
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 1.0625rem/1.65 var(--serif);
+      }
+      main {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding-block: 2.5rem;
+        padding-inline: 1.25rem;
+      }
+      h1 {
+        font-weight: 600;
+        font-size: 1.7rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .grid {
+        display: grid;
+        gap: 2rem 3rem;
+        margin-top: 1.75rem;
+        align-items: start;
+      }
+      @media (min-width: 58rem) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        }
+      }
+      .left,
+      .right {
+        min-width: 0;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      label {
+        display: grid;
+        grid-template-columns: 2.5rem 1fr 7.5rem;
+        align-items: center;
+        gap: 1rem;
+        margin: 0.6rem 0;
+      }
+      label > span:first-child {
+        font-style: italic;
+      }
+      label > span:last-child {
+        text-align: right;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--ink);
+      }
+      input[type="range"]:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 4px;
+      }
+      .sliders {
+        margin-top: 0.5rem;
+      }
+      .formula {
+        font-size: 1.1rem;
+        overflow-x: auto;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--rule);
+      }
+
+      /* graph */
+      #graph {
+        cursor: crosshair;
+        touch-action: none;
+      }
+      .axis {
+        stroke: var(--muted);
+        stroke-width: 1;
+      }
+      .grid-l {
+        stroke: var(--rule);
+        stroke-width: 1;
+      }
+      .tick {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        text-anchor: middle;
+      }
+      .tick.y {
+        text-anchor: end;
+        dominant-baseline: central;
+      }
+      .alabel {
+        fill: var(--muted);
+        font: italic 14px var(--serif);
+        text-anchor: middle;
+      }
+      .curve {
+        fill: none;
+        stroke: var(--r);
+        stroke-width: 2.5;
+      }
+      .bmax {
+        stroke: var(--ink);
+        stroke-width: 1.25;
+        stroke-dasharray: 6 4;
+      }
+      .bmaxl {
+        fill: var(--ink);
+        font: italic 14px var(--serif);
+        text-anchor: end;
+      }
+      .ka {
+        stroke: var(--nr);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 4;
+        fill: none;
+      }
+      .kal {
+        fill: var(--nr);
+        font: 13px var(--serif);
+      }
+      .drop {
+        stroke: var(--ink);
+        stroke-width: 1;
+        stroke-dasharray: 2 3;
+        opacity: 0.5;
+        fill: none;
+      }
+      .pt {
+        fill: var(--paper);
+        stroke: var(--ink);
+        stroke-width: 2.5;
+      }
+
+      /* schematic */
+      .sch-wrap {
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .zone {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .count {
+        fill: var(--ink);
+        font: 600 15px var(--serif);
+        text-anchor: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .cyto {
+        fill: var(--cyto);
+      }
+      .ecf {
+        fill: var(--paper);
+      }
+      .head {
+        fill: var(--lipid);
+      }
+      .tail {
+        stroke: var(--lipid);
+        stroke-width: 1.5;
+      }
+      .rec path {
+        fill: var(--tint);
+        stroke: var(--muted);
+        stroke-width: 1.25;
+        transition: stroke 0.3s;
+      }
+      .rec.bound path {
+        stroke: var(--r);
+        stroke-width: 2;
+      }
+      .lig {
+        fill: var(--r);
+      }
+      .free {
+        transition: opacity 0.3s;
+      }
+      .rec .lig {
+        opacity: 0;
+        transform: translateY(-34px);
+        transform-box: fill-box;
+        transition:
+          opacity 0.3s,
+          transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+      .rec.bound .lig {
+        opacity: 1;
+        transform: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rec .lig,
+        .free,
+        .rec path {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Receptor Occupancy</h1>
+      <div class="grid">
+        <div class="left">
+          <svg
+            id="graph"
+            viewBox="0 0 400 280"
+            role="img"
+            aria-label="Occupancy alpha against agonist concentration, rising to Bmax"
+          ></svg>
+          <div class="sliders">
+            <label for="dose"
+              ><span>[A]</span
+              ><input
+                id="dose"
+                type="range"
+                min="0"
+                max="1000"
+                step="5"
+                value="150" /><span id="doseV"></span
+            ></label>
+            <label for="ka"
+              ><span>K<sub>A</sub></span
+              ><input
+                id="ka"
+                type="range"
+                min="6"
+                max="8.5"
+                step="0.05"
+                value="7" /><span id="kaV"></span
+            ></label>
+          </div>
+          <div class="formula" id="eq"></div>
+        </div>
+        <div class="right">
+          <div class="sch-wrap">
+            <svg
+              id="sch"
+              viewBox="0 0 600 430"
+              role="img"
+              aria-label="Membrane with receptors; agonist spheres bind as concentration rises"
+            ></svg>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer><a href="../">Back to contents page</a></footer>
+
+    <script>
+      const doseEl = document.getElementById("dose"),
+        kaEl = document.getElementById("ka");
+      const N = 16,
+        MAXFREE = 48,
+        AMAX = 1000; // nM
+      const alpha = (AnM, logKa) => {
+        const x = Math.pow(10, logKa) * AnM * 1e-9;
+        return x / (1 + x);
+      };
+
+      // seeded RNG so the picture is identical on every load
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      const sci = (v) => {
+        // [mantissa, exponent]
+        if (v === 0) return ["0", 0];
+        const e = Math.floor(Math.log10(v));
+        return [(v / Math.pow(10, e)).toFixed(1), e];
+      };
+      const sciTex = (v) => {
+        const [m, e] = sci(v);
+        return v === 0 ? "0" : `${m}\\times10^{${e}}`;
+      };
+      const sciTxt = (v) => {
+        const [m, e] = sci(v);
+        const sup = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+        const s = String(Math.abs(e))
+          .split("")
+          .map((d) => sup[d])
+          .join("");
+        return `${m} × 10${e < 0 ? "⁻" : ""}${s}`;
+      };
+
+      // ---------- Graph (linear [A]) ----------
+      const G = { x0: 46, x1: 384, y0: 236, y1: 20 };
+      const YMAX = 1.12;
+      const sx = (a) => G.x0 + (a / AMAX) * (G.x1 - G.x0);
+      const sy = (t) => G.y0 - (t / YMAX) * (G.y0 - G.y1);
+      const graph = document.getElementById("graph");
+
+      function drawGraph(A, logKa) {
+        let s = "";
+        for (let t = 0; t <= 1.001; t += 0.25) {
+          s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(t)}" y2="${sy(t)}"/>`;
+          s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t.toFixed(2)}</text>`;
+        }
+        for (let a = 0; a <= AMAX; a += 200) {
+          s += `<line class="axis" x1="${sx(a)}" x2="${sx(a)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
+          s += `<text class="tick" x="${sx(a)}" y="${G.y0 + 20}">${a}</text>`;
+        }
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
+        s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[A] (nM)</text>`;
+        s += `<text class="alabel" x="14" y="${(G.y0 + G.y1) / 2}">α</text>`;
+        // Bmax asymptote
+        s += `<line class="bmax" x1="${G.x0}" x2="${G.x1}" y1="${sy(1)}" y2="${sy(1)}"/>`;
+        s += `<text class="bmaxl" x="${G.x1}" y="${sy(1) - 7}">B<tspan baseline-shift="sub" font-size="10" font-style="normal">max</tspan></text>`;
+        // 1/KA guide, if on the axis
+        const half = 1e9 / Math.pow(10, logKa);
+        if (half <= AMAX) {
+          const kx = sx(half),
+            ky = sy(0.5);
+          s += `<path class="ka" d="M${G.x0},${ky} H${kx} V${G.y0}"/>`;
+          s += `<text class="kal" x="${kx + 5}" y="${G.y0 - 7}">1/K<tspan baseline-shift="sub" font-size="9">A</tspan></text>`;
+        }
+        // curve
+        let d = "";
+        for (let i = 0; i <= 200; i++) {
+          const a = (AMAX * i) / 200;
+          d +=
+            (i ? "L" : "M") +
+            sx(a).toFixed(1) +
+            "," +
+            sy(alpha(a, logKa)).toFixed(1);
+        }
+        s += `<path class="curve" d="${d}"/>`;
+        const t = alpha(A, logKa),
+          px = sx(A),
+          py = sy(t);
+        s += `<path class="drop" d="M${px},${G.y0} V${py} H${G.x0}"/>`;
+        s += `<circle class="pt" cx="${px}" cy="${py}" r="6"/>`;
+        graph.innerHTML = s;
+      }
+
+      function setFromPointer(e) {
+        const r = graph.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width) * 400;
+        const a = Math.min(
+          AMAX,
+          Math.max(0, ((x - G.x0) / (G.x1 - G.x0)) * AMAX),
+        );
+        doseEl.value = Math.round(a / 5) * 5;
+        render();
+      }
+      graph.addEventListener("pointerdown", (e) => {
+        graph.setPointerCapture(e.pointerId);
+        setFromPointer(e);
+      });
+      graph.addEventListener("pointermove", (e) => {
+        if (graph.hasPointerCapture(e.pointerId)) setFromPointer(e);
+      });
+
+      // ---------- Schematic (static; built once, then toggled) ----------
+      const NS = "http://www.w3.org/2000/svg";
+      const sch = document.getElementById("sch");
+      const MEM_TOP = 296,
+        MEM_BOT = 346;
+      const el = (tag, attrs, parent) => {
+        const n = document.createElementNS(NS, tag);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        (parent || sch).appendChild(n);
+        return n;
+      };
+
+      el("rect", { class: "ecf", x: 0, y: 0, width: 600, height: MEM_BOT });
+      el("rect", {
+        class: "cyto",
+        x: 0,
+        y: MEM_BOT,
+        width: 600,
+        height: 430 - MEM_BOT,
+      });
+      el("text", { class: "zone", x: 16, y: 26 }).textContent = "Extracellular";
+      el("text", { class: "zone", x: 16, y: 416 }).textContent =
+        "Intracellular";
+      const countEl = el("text", { class: "count", x: 584, y: 27 });
+      for (let x = 5; x < 600; x += 10) {
+        for (const [y1, y2] of [
+          [MEM_TOP + 4, MEM_TOP + 22],
+          [MEM_BOT - 22, MEM_BOT - 4],
+        ]) {
+          el("line", { class: "tail", x1: x - 1.5, y1, x2: x - 1.5, y2 });
+          el("line", { class: "tail", x1: x + 1.5, y1, x2: x + 1.5, y2 });
+        }
+        el("circle", { class: "head", cx: x, cy: MEM_TOP, r: 4.5 });
+        el("circle", { class: "head", cx: x, cy: MEM_BOT, r: 4.5 });
+      }
+
+      // receptors: one body, with the binding pocket cut into its top
+      const recs = [],
+        gap = 600 / N,
+        w = 12,
+        nr = 8.5;
+      const T = MEM_TOP - 40,
+        B = MEM_BOT + 34;
+      for (let i = 0; i < N; i++) {
+        const x = gap / 2 + i * gap;
+        const g = el("g", { class: "rec" });
+        el(
+          "path",
+          {
+            d: `M${x - w},${B - 6} V${T + 5} Q${x - w},${T} ${x - w + 5},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - 5} Q${x + w},${T} ${x + w},${T + 5} V${B - 6} Q${x + w},${B} ${x + w - 6},${B} H${x - w + 6} Q${x - w},${B} ${x - w},${B - 6} Z`,
+          },
+          g,
+        );
+        el("circle", { class: "lig", cx: x, cy: T + 1, r: 7 }, g);
+        recs.push(g);
+      }
+      // fixed binding order so raising [A] only ever adds bound receptors
+      const order = [...Array(N).keys()]
+        .map((i) => [rnd(), i])
+        .sort((a, b) => a[0] - b[0])
+        .map((p) => p[1]);
+
+      // free agonist at fixed, non-overlapping positions
+      const pts = [];
+      while (pts.length < MAXFREE) {
+        const p = { x: 20 + rnd() * 560, y: 48 + rnd() * (T - 78) };
+        if (p.x > 470 && p.y < 50) continue; // keep clear of the count
+        if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 22 ** 2))
+          pts.push(p);
+      }
+      const frees = pts.map((p) =>
+        el("circle", { class: "lig free", cx: p.x, cy: p.y, r: 7, opacity: 0 }),
+      );
+
+      function drawSchematic(A, t) {
+        const bound = Math.round(t * N);
+        const on = new Set(order.slice(0, bound));
+        recs.forEach((g, i) => g.classList.toggle("bound", on.has(i)));
+        const k = Math.round((MAXFREE * A) / AMAX);
+        frees.forEach((c, i) => c.setAttribute("opacity", i < k ? 1 : 0));
+        countEl.textContent = `${bound} / ${N}`;
+      }
+
+      // ---------- Render ----------
+      function render() {
+        const A = +doseEl.value,
+          logKa = +kaEl.value;
+        const Ka = Math.pow(10, logKa),
+          AM = A * 1e-9,
+          x = Ka * AM,
+          t = x / (1 + x);
+        document.getElementById("doseV").textContent = `${A} nM`;
+        document.getElementById("kaV").textContent = `${sciTxt(Ka)} M⁻¹`;
+        const prod = `(${sciTex(Ka)})(${sciTex(AM)})`;
+        katex.render(
+          `\\begin{aligned} \\alpha &= \\frac{K_A[A]}{1 + K_A[A]} \\\\[0.6em] &= \\frac{${prod}}{1 + ${prod}} = \\mathbf{${t.toFixed(3)}} \\end{aligned}`,
+          document.getElementById("eq"),
+          { displayMode: true, throwOnError: false },
+        );
+        drawGraph(A, logKa);
+        drawSchematic(A, t);
+      }
+      [doseEl, kaEl].forEach((s) => s.addEventListener("input", render));
+      render();
+    </script>
+  </body>
+</html>
