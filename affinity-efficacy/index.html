@@ -262,6 +262,44 @@
         border: 1px solid var(--rule);
         border-radius: 6px;
         overflow: hidden;
+        position: relative;
+      }
+      .note {
+        fill: var(--muted);
+        font: italic 12px var(--serif);
+      }
+      .zoom {
+        position: absolute;
+        right: 0.6rem;
+        bottom: 0.6rem;
+        display: flex;
+      }
+      .zoom button {
+        width: 2rem;
+        height: 2rem;
+        font: 1.1rem/1 var(--serif);
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        cursor: pointer;
+      }
+      .zoom button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .zoom button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .zoom button:hover:not(:disabled) {
+        color: var(--ink);
+      }
+      .zoom button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .zoom button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
       }
       .zone {
         fill: var(--muted);
@@ -269,11 +307,19 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      .count {
-        fill: var(--ink);
-        font: 600 15px var(--serif);
-        text-anchor: end;
+      .zone .vol {
+        text-transform: none;
+        letter-spacing: 0.02em;
+      }
+      .key {
+        fill: var(--muted);
+        font: 14px var(--serif);
         font-variant-numeric: tabular-nums;
+        dominant-baseline: central;
+      }
+      .key tspan {
+        font-weight: 600;
+        fill: var(--ink);
       }
       .cyto {
         fill: var(--cyto);
@@ -301,8 +347,12 @@
       .lig {
         fill: var(--r);
       }
-      .free {
-        transition: opacity 0.3s;
+      .crowd {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
       }
       .rec .lig {
         opacity: 0;
@@ -344,7 +394,6 @@
       }
       @media (prefers-reduced-motion: reduce) {
         .rec .lig,
-        .free,
         .rec path,
         .sig,
         .rbar {
@@ -459,6 +508,11 @@
               role="img"
               aria-label="Membrane with receptors; bound receptors may signal into the cell, adding to the response"
             ></svg>
+            <canvas class="crowd" aria-hidden="true"></canvas>
+            <div class="zoom" role="group" aria-label="Zoom the schematic">
+              <button type="button" data-z="1" aria-label="Zoom out">−</button
+              ><button type="button" data-z="-1" aria-label="Zoom in">+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -469,9 +523,8 @@
         affEl = document.getElementById("aff"),
         effEl = document.getElementById("eff"),
         nrecEl = document.getElementById("nrec");
-      const MAXN = 20,
-        NREF = 10, // receptor count at which tau equals the efficacy value
-        MAXFREE = 40,
+      const NREF = 10, // receptor count at which tau equals the efficacy value
+        PER_NM_FL = 0.6022, // molecules in 1 fL at 1 nM
         LMIN = -2,
         LMAX = 6; // log10 [L] (nM) axis range
 
@@ -506,7 +559,7 @@
       );
 
       // ---------- Graph (log [L]) ----------
-      const G = { x0: 50, x1: 350, y0: 236, y1: 20 };
+      const G = { x0: 50, x1: 344, y0: 236, y1: 20 };
       const YMAX = 1.12;
       const sx = (L) =>
         G.x0 +
@@ -551,7 +604,7 @@
         s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[L] (M)</text>`;
         const ym = (G.y0 + G.y1) / 2;
         s += `<text class="alabel o" transform="translate(12 ${ym}) rotate(-90)">Occupancy</text>`;
-        s += `<text class="alabel e" transform="translate(392 ${ym}) rotate(90)">% Response</text>`;
+        s += `<text class="alabel e" transform="translate(384 ${ym}) rotate(90)">Response (%)</text>`;
 
         // K_D: half occupancy. EC50: half of this ligand's own maximum response.
         const kx = sx(Kd);
@@ -619,10 +672,12 @@
         width: 600,
         height: H - MEM_BOT,
       });
-      el("text", { class: "zone", x: 16, y: 26 }).textContent = "Extracellular";
+      const zoneTop = el("text", { class: "zone", x: 16, y: 26 });
       el("text", { class: "zone", x: 16, y: H - 14 }).textContent =
         "Intracellular";
-      const countEl = el("text", { class: "count", x: 584, y: 27 });
+      // key: free ligand molecules in the volume shown
+      el("circle", { class: "lig", cx: 486, cy: 24, r: 5 });
+      const keyL = el("text", { class: "key", x: 498, y: 24 });
       for (let x = 5; x < 600; x += 10) {
         for (const [y1, y2] of [
           [MEM_TOP + 4, MEM_TOP + 22],
@@ -655,31 +710,50 @@
         rx: 4,
       });
 
-      // Per-receptor fixed randomness: binding priority, and a threshold for whether it signals once bound
-      const prio = Array.from({ length: MAXN }, rnd),
-        chance = Array.from({ length: MAXN }, rnd);
+      el("text", { class: "note", x: 16, y: 44 }).textContent =
+        "Receptor numbers not to scale";
 
-      // receptors: rebuilt when the count changes
+      // Zoom: each step out doubles the volume shown and the receptors drawn, so density is unchanged.
+      // The volume only changes when the viewer zooms, never with the sliders.
+      const ZOOMS = [1, 2, 4],
+        V0 = 2, // fL at the closest zoom
+        SPREAD0 = 100, // free molecules placed without overlap at the closest zoom
+        SAT = 5, // enough molecules to cover the space this many times over: beyond that it looks solid
+        ALPHA = 0.55;
+      let zi = 0;
+      const fmtVol = (v) => `${+v.toPrecision(2)} fL`;
+      const seeded = (seed) => () =>
+        ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      // receptors: rebuilt when the drawn count changes (receptor slider x zoom)
       const recLayer = el("g", {});
       let recs = [],
-        builtN = 0;
-      function buildReceptors(n) {
+        prio = [],
+        chance = [],
+        free = null,
+        builtN = 0,
+        builtZ = 0;
+      function buildReceptors(nd) {
+        // per-receptor fixed randomness: binding priority, and a threshold for whether it signals once bound
+        const rr = seeded(23 + nd);
         recLayer.replaceChildren();
         recs = [];
-        const gap = 600 / n,
-          w = 12,
-          nr = 8.5;
-        for (let i = 0; i < n; i++) {
+        const gap = 600 / nd,
+          w = Math.min(12, gap * 0.32),
+          nr = w * 0.7,
+          lr = w * 0.58,
+          c = Math.min(5, w * 0.4);
+        for (let i = 0; i < nd; i++) {
           const x = gap / 2 + i * gap;
           const g = el("g", { class: "rec" }, recLayer);
           el(
             "path",
             {
-              d: `M${x - w},${B - 6} V${T + 5} Q${x - w},${T} ${x - w + 5},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - 5} Q${x + w},${T} ${x + w},${T + 5} V${B - 6} Q${x + w},${B} ${x + w - 6},${B} H${x - w + 6} Q${x - w},${B} ${x - w},${B - 6} Z`,
+              d: `M${x - w},${B - c} V${T + c} Q${x - w},${T} ${x - w + c},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - c} Q${x + w},${T} ${x + w},${T + c} V${B - c} Q${x + w},${B} ${x + w - c},${B} H${x - w + c} Q${x - w},${B} ${x - w},${B - c} Z`,
             },
             g,
           );
-          el("circle", { class: "lig", cx: x, cy: T + 1, r: 7 }, g);
+          el("circle", { class: "lig", cx: x, cy: T + 1, r: lr }, g);
           el(
             "line",
             {
@@ -694,39 +768,90 @@
           );
           recs.push(g);
         }
-        builtN = n;
+        prio = Array.from({ length: nd }, rr);
+        chance = Array.from({ length: nd }, rr);
+        builtN = nd;
       }
 
-      // free ligand at fixed, non-overlapping positions
-      const pts = [];
-      while (pts.length < MAXFREE) {
-        const p = { x: 20 + rnd() * 560, y: 48 + rnd() * (T - 78) };
-        if (p.x > 470 && p.y < 50) continue; // keep clear of the count
-        if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 22 ** 2))
-          pts.push(p);
+      // free ligand at fixed positions: the first few spread out without overlapping,
+      // the rest scattered at random so a high concentration crowds the space
+      function buildFree(f) {
+        const rr = seeded(5 + f),
+          rad = 5 / Math.sqrt(f),
+          max = Math.ceil((SAT * 580 * (T - 76)) / (Math.PI * rad * rad)),
+          pt = () => ({ x: 10 + rr() * 580, y: 58 + rr() * (T - 76) }),
+          pts = [];
+        for (let tries = 0; pts.length < SPREAD0 * f && tries < 200000; tries++) {
+          const p = pt();
+          if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > (rad * 3.2) ** 2))
+            pts.push(p);
+        }
+        while (pts.length < max) pts.push(pt());
+        free = { rad, max, pts, k: 0 };
+        builtZ = f;
       }
-      const frees = pts.map((p) =>
-        el("circle", { class: "lig free", cx: p.x, cy: p.y, r: 7, opacity: 0 }),
-      );
 
       function drawSchematic(L, Kd, eff, n, tau) {
-        if (n !== builtN) buildReceptors(n);
-        const nb = Math.round(occ(L, Kd) * n);
+        const f = ZOOMS[zi],
+          nd = n * f;
+        if (nd !== builtN) buildReceptors(nd);
+        if (f !== builtZ) buildFree(f);
+        const nb = Math.round(occ(L, Kd) * nd);
         const bound = new Set(
-          [...Array(n).keys()].sort((a, b) => prio[a] - prio[b]).slice(0, nb),
+          [...Array(nd).keys()].sort((a, b) => prio[a] - prio[b]).slice(0, nb),
         );
         const p = eff / (1 + eff); // chance a bound receptor is signalling
         recs.forEach((g, i) => {
           g.classList.toggle("bound", bound.has(i));
           g.classList.toggle("active", bound.has(i) && chance[i] < p);
         });
-        const k = Math.round(
-          (MAXFREE * (Math.log10(L) - LMIN)) / (LMAX - LMIN),
-        );
-        frees.forEach((c, i) => c.setAttribute("opacity", i < k ? 1 : 0));
-        countEl.textContent = `${nb} / ${n}`;
+        // dot count is concentration x volume shown
+        const V = V0 * f,
+          k = Math.round(L * V * PER_NM_FL);
+        free.k = k;
+        drawCrowd();
+        zoneTop.innerHTML = `Extracellular · <tspan class="vol">${fmtVol(V)}</tspan>`;
+        keyL.innerHTML = `<tspan>${k.toLocaleString()}</tspan> ligand`;
         rbar.setAttribute("width", RW * resp(L, Kd, tau));
+        zoomBtns.forEach((b) => {
+          const to = zi + +b.dataset.z;
+          b.disabled = to < 0 || to >= ZOOMS.length;
+        });
       }
+
+      // free ligand goes on a canvas over the schematic: there can be tens of thousands
+      const crowd = document.querySelector(".crowd"),
+        cx = crowd.getContext("2d");
+      function drawCrowd() {
+        if (!free) return;
+        const w = Math.round(crowd.clientWidth * devicePixelRatio),
+          h = Math.round(crowd.clientHeight * devicePixelRatio);
+        if (crowd.width !== w || crowd.height !== h) {
+          crowd.width = w;
+          crowd.height = h;
+        } else cx.clearRect(0, 0, w, h);
+        cx.setTransform(w / 600, 0, 0, h / 520, 0, 0);
+        cx.fillStyle = getComputedStyle(document.documentElement)
+          .getPropertyValue("--r")
+          .trim();
+        cx.globalAlpha = ALPHA;
+        const { rad, max, pts } = free;
+        for (let i = 0; i < Math.min(free.k, max); i++) {
+          cx.beginPath();
+          cx.arc(pts[i].x, pts[i].y, rad, 0, 2 * Math.PI);
+          cx.fill();
+        }
+      }
+      new ResizeObserver(drawCrowd).observe(crowd);
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawCrowd);
+
+      const zoomBtns = document.querySelectorAll(".zoom button");
+      zoomBtns.forEach((b) =>
+        b.addEventListener("click", () => {
+          zi = Math.min(ZOOMS.length - 1, Math.max(0, zi + +b.dataset.z));
+          render();
+        }),
+      );
 
       // ---------- Render ----------
       function render() {

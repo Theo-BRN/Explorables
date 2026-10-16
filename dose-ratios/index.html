@@ -24,6 +24,7 @@
         --muted: #5b6878;
         --r: #2f6fb3;
         --nr: #b0422e;
+        --resp: #a85a00;
         --rule: #d5dce5;
         --tint: #dde8f5;
         --lipid: #c9d2dd;
@@ -37,6 +38,7 @@
           --muted: #93a0b0;
           --r: #7fb1ea;
           --nr: #ec8a74;
+          --resp: #f0a54f;
           --rule: #2c3643;
           --tint: #1f3149;
           --lipid: #34404e;
@@ -50,6 +52,7 @@
         --muted: #93a0b0;
         --r: #7fb1ea;
         --nr: #ec8a74;
+        --resp: #f0a54f;
         --rule: #2c3643;
         --tint: #1f3149;
         --lipid: #34404e;
@@ -159,16 +162,44 @@
         font: italic 14px var(--serif);
         text-anchor: middle;
       }
+      .alabel.e {
+        fill: var(--resp);
+      }
+      /* both curves are responses (dashed, as on Affinity and Efficacy); colour separates them */
       .curve {
         fill: none;
-        stroke: var(--r);
+        stroke: var(--resp);
         stroke-width: 2.5;
+        stroke-dasharray: 7 4;
       }
       .ctrl {
         fill: none;
         stroke: var(--muted);
         stroke-width: 2;
-        stroke-dasharray: 6 4;
+        stroke-dasharray: 7 4;
+      }
+      .under {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem 1rem;
+        margin-top: 0.25rem;
+      }
+      .legend {
+        display: flex;
+        gap: 1.25rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .legend svg {
+        width: 1.6rem;
+        height: 0.5rem;
       }
       .half {
         stroke: var(--rule);
@@ -197,14 +228,65 @@
       }
       .pt {
         fill: var(--paper);
+        stroke-width: 2;
+      }
+      .pt.c {
+        stroke: var(--muted);
+      }
+      .pt.b {
+        stroke: var(--resp);
+      }
+      .pt.on {
         stroke: var(--ink);
-        stroke-width: 2.5;
+        stroke-width: 3;
+      }
+      .dl {
+        fill: var(--ink);
+        font: 13px var(--serif);
+        paint-order: stroke;
+        stroke: var(--paper);
+        stroke-width: 4px;
+      }
+
+      /* schematic switch: D1 alone vs D2 with antagonist */
+      .view {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+      }
+      .view button {
+        font: 0.95rem var(--serif);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        padding: 0.3rem 0.9rem;
+        cursor: pointer;
+      }
+      .view button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .view button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .view button:hover {
+        color: var(--ink);
+      }
+      .view button[aria-pressed="true"] {
+        background: var(--tint);
+        color: var(--ink);
+      }
+      .view button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+      .view .b {
+        color: var(--nr);
       }
 
       .xscale {
         display: flex;
         justify-content: flex-end;
-        margin-top: 0.25rem;
       }
       .xscale button {
         font: 0.75rem var(--serif);
@@ -240,6 +322,44 @@
         border: 1px solid var(--rule);
         border-radius: 6px;
         overflow: hidden;
+        position: relative;
+      }
+      .note {
+        fill: var(--muted);
+        font: italic 12px var(--serif);
+      }
+      .zoom {
+        position: absolute;
+        right: 0.6rem;
+        bottom: 0.6rem;
+        display: flex;
+      }
+      .zoom button {
+        width: 2rem;
+        height: 2rem;
+        font: 1.1rem/1 var(--serif);
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        cursor: pointer;
+      }
+      .zoom button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .zoom button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .zoom button:hover:not(:disabled) {
+        color: var(--ink);
+      }
+      .zoom button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .zoom button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
       }
       .zone {
         fill: var(--muted);
@@ -247,17 +367,19 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      .count {
-        font: 600 15px var(--serif);
-        text-anchor: end;
-        font-variant-numeric: tabular-nums;
+      .zone .vol {
+        text-transform: none;
+        letter-spacing: 0.02em;
+      }
+      .key {
         fill: var(--muted);
+        font: 14px var(--serif);
+        font-variant-numeric: tabular-nums;
+        dominant-baseline: central;
       }
-      .count .a {
-        fill: var(--r);
-      }
-      .count .b {
-        fill: var(--nr);
+      .key tspan {
+        font-weight: 600;
+        fill: var(--ink);
       }
       .cyto {
         fill: var(--cyto);
@@ -292,8 +414,12 @@
       .ant {
         fill: var(--nr);
       }
-      .free {
-        transition: opacity 0.3s;
+      .crowd {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
       }
       .rec .lig,
       .rec .ant {
@@ -309,11 +435,38 @@
         opacity: 1;
         transform: none;
       }
+      .sig {
+        stroke: var(--resp);
+        stroke-width: 2.5;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .rec.active .sig {
+        opacity: 1;
+      }
+      .sighead {
+        fill: var(--resp);
+      }
+      .rword {
+        fill: var(--resp);
+        font: 600 17px var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-anchor: middle;
+      }
+      .rbar-bg {
+        fill: var(--rule);
+      }
+      .rbar {
+        fill: var(--resp);
+        transition: width 0.3s;
+      }
       @media (prefers-reduced-motion: reduce) {
         .rec .lig,
         .rec .ant,
-        .free,
-        .rec path.body {
+        .rec path.body,
+        .sig,
+        .rbar {
           transition: none;
         }
       }
@@ -359,22 +512,36 @@
             id="graph"
             viewBox="0 0 400 280"
             role="img"
-            aria-label="Agonist occupancy against agonist concentration, with and without a competitive antagonist; the antagonist shifts the curve right by the dose ratio"
+            aria-label="Response against agonist concentration, with and without a competitive antagonist; the antagonist shifts the curve right by the dose ratio"
           ></svg>
-          <div class="xscale" role="group" aria-label="x-axis scale">
-            <button type="button" data-scale="lin">Linear</button
-            ><button type="button" data-scale="log">Log</button>
+          <div class="under">
+            <div class="legend" aria-hidden="true">
+              <span
+                ><svg viewBox="0 0 26 8">
+                  <line class="ctrl" x1="0" x2="26" y1="4" y2="4" /></svg
+                >Agonist alone</span
+              >
+              <span
+                ><svg viewBox="0 0 26 8">
+                  <line class="curve" x1="0" x2="26" y1="4" y2="4" /></svg
+                >With antagonist</span
+              >
+            </div>
+            <div class="xscale" role="group" aria-label="x-axis scale">
+              <button type="button" data-scale="lin">Linear</button
+              ><button type="button" data-scale="log">Log</button>
+            </div>
           </div>
           <div class="sliders">
             <label for="dose"
-              ><span>[A]</span
+              ><span>D<sub>1</sub></span
               ><input
                 id="dose"
                 type="range"
                 min="-1"
                 max="6"
                 step="0.05"
-                value="2.5" /><span id="doseV"></span
+                value="1.5" /><span id="doseV"></span
             ></label>
             <label for="ant" class="ant"
               ><span>[B]</span
@@ -400,13 +567,26 @@
           <div class="formula" id="eq"></div>
         </div>
         <div class="right">
+          <div class="view" role="group" aria-label="Dose shown in the schematic">
+            <button type="button" data-view="d1">
+              <i>[A]</i> = D<sub>1</sub>, <i class="b">[B]</i> = 0</button
+            ><button type="button" data-view="d2">
+              <i>[A]</i> = D<sub>2</sub>, <i class="b">[B]</i> =
+              <span id="bView"></span>
+            </button>
+          </div>
           <div class="sch-wrap">
             <svg
               id="sch"
-              viewBox="0 0 600 430"
+              viewBox="0 0 600 520"
               role="img"
               aria-label="Membrane with receptors; agonist spheres and antagonist diamonds compete for the same binding site"
             ></svg>
+            <canvas class="crowd" aria-hidden="true"></canvas>
+            <div class="zoom" role="group" aria-label="Zoom the schematic">
+              <button type="button" data-z="1" aria-label="Zoom out">−</button
+              ><button type="button" data-z="-1" aria-label="Zoom in">+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -417,9 +597,7 @@
       const doseEl = document.getElementById("dose"),
         antEl = document.getElementById("ant"),
         kbEl = document.getElementById("kb");
-      const N = 16,
-        MAXFREE = 28, // per ligand
-        BMAX = 1000, // nM
+      const PER_NM_FL = 0.6022, // molecules in 1 fL at 1 nM
         LOG_KA = 7; // agonist affinity, fixed for now
 
       // x-axis scales: the slider and graph both work in "v" (nM, or log10 nM)
@@ -446,12 +624,21 @@
         },
       };
       let scale = SCALES.log,
-        A = 316; // [A] in nM
+        A = 31.6; // D1, the agonist dose alone, in nM
 
       // Agonist occupancy with a competitive antagonist present (Gaddum)
       const alphaA = (a, kbB) => {
         const x = Math.pow(10, LOG_KA) * a * 1e-9;
         return x / (1 + x + kbB);
+      };
+      // Response via the operational model, kept off the page; the dose ratio doesn't depend on TAU
+      // low TAU (little receptor reserve) so the response tracks the receptors drawn; plotted as % of the agonist's own maximum
+      const TAU = 3,
+        EMAX = TAU / (1 + TAU),
+        SIGNAL = 0.8; // chance an agonist-bound receptor is drawn signalling
+      const resp = (a, kbB) => {
+        const s = TAU * alphaA(a, kbB);
+        return s / (1 + s) / EMAX;
       };
 
       // seeded RNG so the picture is identical on every load
@@ -488,7 +675,7 @@
               : `${+(nM / 1e6).toPrecision(3)} mM`;
 
       // ---------- Graph ----------
-      const G = { x0: 46, x1: 384, y0: 236, y1: 20 };
+      const G = { x0: 50, x1: 384, y0: 236, y1: 20 };
       const YMAX = 1.12;
       const xv = (v) =>
         G.x0 + ((v - scale.min) / (scale.max - scale.min)) * (G.x1 - G.x0);
@@ -505,7 +692,7 @@
             (i ? "L" : "M") +
             xv(v).toFixed(1) +
             "," +
-            sy(alphaA(scale.from(v), kbB)).toFixed(1);
+            sy(resp(scale.from(v), kbB)).toFixed(1);
         }
         return d;
       };
@@ -514,7 +701,7 @@
         let s = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="shifthead" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
         for (let t = 0; t <= 1.001; t += 0.25) {
           s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(t)}" y2="${sy(t)}"/>`;
-          s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t.toFixed(2)}</text>`;
+          s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t * 100}</text>`;
         }
         for (const [v, label] of scale.ticks) {
           s += `<line class="axis" x1="${xv(v)}" x2="${xv(v)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
@@ -523,27 +710,27 @@
         s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
         s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
         s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">${scale.label}</text>`;
-        s += `<text class="alabel" x="14" y="${(G.y0 + G.y1) / 2}">α<tspan baseline-shift="sub" font-size="10">A</tspan></text>`;
-        // half-maximal guide
-        s += `<line class="half" x1="${G.x0}" x2="${G.x1}" y1="${sy(0.5)}" y2="${sy(0.5)}"/>`;
+        s += `<text class="alabel e" transform="translate(12 ${(G.y0 + G.y1) / 2}) rotate(-90)">Response (%)</text>`;
         // control (no antagonist) and with antagonist
         s += `<path class="ctrl" d="${curvePath(0)}"/>`;
         s += `<path class="curve" d="${curvePath(kbB)}"/>`;
-        // the shift: same response needs r times more agonist
-        const a0 = 1e9 / Math.pow(10, LOG_KA), // control [A]50, nM
-          x0 = sx(a0),
-          xEnd = sx(a0 * r);
-        if (r > 1.15 && xEnd - x0 > 12) {
-          const y = sy(0.5);
-          s += `<path class="shift" marker-end="url(#ah)" d="M${x0},${y} H${xEnd - 2}"/>`;
-          s += `<text class="shiftl" x="${(x0 + xEnd) / 2}" y="${y - 9}">× ${fmtR(r)}</text>`;
+        // D1 (alone) and D2 (with antagonist) give the same response; D2 = r x D1
+        const py = sy(resp(A, 0)),
+          x1 = sx(A),
+          x2 = sx(A * r);
+        s += `<path class="drop" d="M${G.x0},${py} H${x1}"/>`;
+        s += `<path class="drop" d="M${x1},${py} V${G.y0}"/>`;
+        s += `<path class="drop" d="M${x2},${py} V${G.y0}"/>`;
+        if (r > 1.15 && x2 - x1 > 16) {
+          s += `<path class="shift" marker-end="url(#ah)" d="M${x1 + 7},${py} H${x2 - 8}"/>`;
+          s += `<text class="shiftl" x="${(x1 + x2) / 2}" y="${py - 9}">× ${fmtR(r)}</text>`;
         }
-        // current point
-        const t = alphaA(A, kbB),
-          px = sx(A),
-          py = sy(t);
-        s += `<path class="drop" d="M${px},${G.y0} V${py} H${G.x0}"/>`;
-        s += `<circle class="pt" cx="${px}" cy="${py}" r="6"/>`;
+        const sub = (n) => `D<tspan baseline-shift="sub" font-size="9">${n}</tspan>`;
+        s += `<text class="dl" x="${x1 - 5}" y="${G.y0 - 7}" text-anchor="end">${sub(1)}</text>`;
+        s += `<text class="dl" x="${x2 + 5}" y="${G.y0 - 7}">${sub(2)}</text>`;
+        // the dose shown in the schematic is drawn emphasised
+        s += `<circle class="pt c${view === "d1" ? " on" : ""}" cx="${x1}" cy="${py}" r="6"/>`;
+        s += `<circle class="pt b${view === "d2" ? " on" : ""}" cx="${x2}" cy="${py}" r="6"/>`;
         graph.innerHTML = s;
       }
 
@@ -600,24 +787,45 @@
       const diamond = (x, y, h) =>
         `M${x},${y - h} L${x + h},${y} L${x},${y + h} L${x - h},${y} Z`;
 
+      const H = 520;
+      el("defs", {}).innerHTML =
+        `<marker id="sh" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="sighead" d="M0,0 L10,5 L0,10 z"/></marker>`;
       el("rect", { class: "ecf", x: 0, y: 0, width: 600, height: MEM_BOT });
       el("rect", {
         class: "cyto",
         x: 0,
         y: MEM_BOT,
         width: 600,
-        height: 430 - MEM_BOT,
+        height: H - MEM_BOT,
       });
-      el("text", { class: "zone", x: 16, y: 26 }).textContent = "Extracellular";
-      el("text", { class: "zone", x: 16, y: 416 }).textContent =
+      const zoneTop = el("text", { class: "zone", x: 16, y: 26 });
+      el("text", { class: "zone", x: 16, y: H - 14 }).textContent =
         "Intracellular";
-      const countEl = el("text", { class: "count", x: 584, y: 27 });
-      const cA = el("tspan", { class: "a" }, countEl),
-        cSep = el("tspan", {}, countEl),
-        cB = el("tspan", { class: "b" }, countEl),
-        cN = el("tspan", {}, countEl);
-      cSep.textContent = " · ";
-      cN.textContent = ` / ${N}`;
+
+      // Response readout: the word, plus a bar showing how much of the maximum is reached
+      const RW = 220;
+      el("text", { class: "rword", x: 300, y: 456 }).textContent = "Response";
+      el("rect", {
+        class: "rbar-bg",
+        x: 300 - RW / 2,
+        y: 468,
+        width: RW,
+        height: 8,
+        rx: 4,
+      });
+      const rbar = el("rect", {
+        class: "rbar",
+        x: 300 - RW / 2,
+        y: 468,
+        width: 0,
+        height: 8,
+        rx: 4,
+      });
+      // key: free molecules in the volume shown
+      el("circle", { class: "lig", cx: 462, cy: 22, r: 5 });
+      el("path", { class: "ant", d: diamond(462, 44, 6) });
+      const keyA = el("text", { class: "key", x: 474, y: 22 }),
+        keyB = el("text", { class: "key", x: 474, y: 44 });
       for (let x = 5; x < 600; x += 10) {
         for (const [y1, y2] of [
           [MEM_TOP + 4, MEM_TOP + 22],
@@ -630,73 +838,179 @@
         el("circle", { class: "head", cx: x, cy: MEM_BOT, r: 4.5 });
       }
 
-      // receptors: one body, with the binding pocket cut into its top; agonist and antagonist share the pocket
-      const recs = [],
-        gap = 600 / N,
-        w = 12,
-        nr = 8.5;
       const T = MEM_TOP - 40,
         B = MEM_BOT + 34;
-      for (let i = 0; i < N; i++) {
-        const x = gap / 2 + i * gap;
-        const g = el("g", { class: "rec" });
-        el(
-          "path",
-          {
-            class: "body",
-            d: `M${x - w},${B - 6} V${T + 5} Q${x - w},${T} ${x - w + 5},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - 5} Q${x + w},${T} ${x + w},${T + 5} V${B - 6} Q${x + w},${B} ${x + w - 6},${B} H${x - w + 6} Q${x - w},${B} ${x - w},${B - 6} Z`,
-          },
-          g,
-        );
-        el("circle", { class: "lig", cx: x, cy: T + 1, r: 7 }, g);
-        el("path", { class: "ant", d: diamond(x, T + 1, 8.5) }, g);
-        recs.push(g);
-      }
-      // fixed order: the first nA receptors hold agonist, the next nB hold antagonist
-      const order = [...Array(N).keys()]
-        .map((i) => [rnd(), i])
-        .sort((a, b) => a[0] - b[0])
-        .map((p) => p[1]);
+      el("text", { class: "note", x: 16, y: 44 }).textContent =
+        "Receptor numbers not to scale";
 
-      // free ligands at fixed, non-overlapping positions; alternate between agonist and antagonist
-      const pts = [];
-      while (pts.length < 2 * MAXFREE) {
-        const p = { x: 20 + rnd() * 560, y: 48 + rnd() * (T - 78) };
-        if (p.x > 440 && p.y < 50) continue; // keep clear of the count
-        if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 22 ** 2))
-          pts.push(p);
-      }
-      const freeA = [],
-        freeB = [];
-      pts.forEach((p, i) => {
-        if (i % 2 === 0)
-          freeA.push(
-            el("circle", { class: "lig free", cx: p.x, cy: p.y, r: 7, opacity: 0 }),
-          );
-        else
-          freeB.push(
-            el("path", { class: "ant free", d: diamond(p.x, p.y, 8.5), opacity: 0 }),
-          );
-      });
+      // Zoom: each step out doubles the volume shown and the receptors drawn, so density is unchanged.
+      // The volume only changes when the viewer zooms, never with the sliders.
+      const ZOOMS = [1, 2, 4],
+        N0 = 8, // receptors at the closest zoom
+        V0 = 0.1, // fL at the closest zoom
+        SPREAD0 = 70, // free molecules per ligand placed without overlap at the closest zoom
+        SAT = 5, // enough molecules to cover the space this many times over: beyond that it looks solid
+        ALPHA = 0.55;
+      let zi = 1;
+      const fmtVol = (v) => `${+v.toPrecision(2)} fL`;
+      const seeded = (seed) => () =>
+        ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 
-      function drawSchematic(BnM, kbB) {
-        const x = Math.pow(10, LOG_KA) * A * 1e-9,
-          denom = 1 + x + kbB;
-        const nA = Math.round((N * x) / denom),
-          nB = Math.min(N - nA, Math.round((N * kbB) / denom));
+      // receptors: one body, with the binding pocket cut into its top; agonist and antagonist share the pocket
+      const recLayer = el("g", {});
+      let recs = [],
+        order = [],
+        chance = [],
+        free = null,
+        builtZ = -1;
+      function buildScene(f) {
+        const rr = seeded(11 + f);
+        const n = N0 * f,
+          gap = 600 / n,
+          w = Math.min(12, gap * 0.32),
+          nr = w * 0.7,
+          lr = w * 0.58,
+          c = Math.min(5, w * 0.4);
+        recLayer.replaceChildren();
+        recs = [];
+        for (let i = 0; i < n; i++) {
+          const x = gap / 2 + i * gap;
+          const g = el("g", { class: "rec" }, recLayer);
+          el(
+            "path",
+            {
+              class: "body",
+              d: `M${x - w},${B - c} V${T + c} Q${x - w},${T} ${x - w + c},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - c} Q${x + w},${T} ${x + w},${T + c} V${B - c} Q${x + w},${B} ${x + w - c},${B} H${x - w + c} Q${x - w},${B} ${x - w},${B - c} Z`,
+            },
+            g,
+          );
+          el("circle", { class: "lig", cx: x, cy: T + 1, r: lr }, g);
+          el("path", { class: "ant", d: diamond(x, T + 1, lr * 1.2) }, g);
+          el(
+            "line",
+            {
+              class: "sig",
+              x1: x,
+              y1: B + 8,
+              x2: x,
+              y2: B + 38,
+              "marker-end": "url(#sh)",
+            },
+            g,
+          );
+          recs.push(g);
+        }
+        // fixed order: the first nA receptors hold agonist, the next nB hold antagonist
+        order = [...Array(n).keys()]
+          .map((i) => [rr(), i])
+          .sort((a, b) => a[0] - b[0])
+          .map((p) => p[1]);
+        // fixed per-receptor threshold for whether an agonist-bound receptor signals
+        chance = Array.from({ length: n }, rr);
+
+        // free molecules at fixed positions, alternating agonist and antagonist: the first few spread out
+        // without overlapping, the rest scattered at random so a high concentration crowds the space
+        const rad = 5 * Math.sqrt(2 / f),
+          max = Math.ceil((SAT * 580 * (T - 80)) / (Math.PI * rad * rad)),
+          pt = () => ({ x: 10 + rr() * 580, y: 62 + rr() * (T - 80) }),
+          pts = [];
+        for (let tries = 0; pts.length < 2 * SPREAD0 * f && tries < 200000; tries++) {
+          const p = pt();
+          if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > (rad * 2.6) ** 2))
+            pts.push(p);
+        }
+        while (pts.length < 2 * max) pts.push(pt());
+        free = { rad, max, pts, kA: 0, kB: 0 };
+        builtZ = f;
+      }
+
+      // D1 view: agonist alone at D1. D2 view: agonist at D2 = r x D1 plus antagonist.
+      // Agonist occupancy is identical in both (the dose-ratio assumption), so the same receptors stay bound.
+      function drawSchematic(BnM, kbB, r) {
+        const f = ZOOMS[zi];
+        if (builtZ !== f) buildScene(f);
+        const n = recs.length;
+        const d2 = view === "d2",
+          a = d2 ? A * r : A,
+          kb = d2 ? kbB : 0;
+        const x = Math.pow(10, LOG_KA) * a * 1e-9,
+          denom = 1 + x + kb;
+        const nA = Math.round(n * alphaA(A, 0)),
+          nB = Math.min(n - nA, Math.round((n * kb) / denom));
         recs.forEach((g, i) => {
           const rank = order.indexOf(i);
           g.classList.toggle("boundA", rank < nA);
           g.classList.toggle("boundB", rank >= nA && rank < nA + nB);
+          g.classList.toggle("active", rank < nA && chance[i] < SIGNAL); // antagonist-bound never signal
         });
-        // free agonist count follows the slider position, so it fills on either scale
-        const kA = Math.round((MAXFREE * (sx(A) - G.x0)) / (G.x1 - G.x0)),
-          kB = Math.round((MAXFREE * BnM) / BMAX);
-        freeA.forEach((c, i) => c.setAttribute("opacity", i < kA ? 1 : 0));
-        freeB.forEach((c, i) => c.setAttribute("opacity", i < kB ? 1 : 0));
-        cA.textContent = `${nA} A`;
-        cB.textContent = `${nB} B`;
+        rbar.setAttribute("width", RW * resp(a, kb));
+        // dot counts are concentration x volume shown
+        const V = V0 * f;
+        const kA = Math.round(a * V * PER_NM_FL),
+          kB = d2 ? Math.round(BnM * V * PER_NM_FL) : 0;
+        free.kA = kA;
+        free.kB = kB;
+        drawCrowd();
+        zoneTop.innerHTML = `Extracellular · <tspan class="vol">${fmtVol(V)}</tspan>`;
+        keyA.innerHTML = `<tspan>${kA.toLocaleString()}</tspan> agonist`;
+        keyB.innerHTML = `<tspan>${kB.toLocaleString()}</tspan> antagonist`;
+        zoomBtns.forEach((b) => {
+          const to = zi + +b.dataset.z;
+          b.disabled = to < 0 || to >= ZOOMS.length;
+        });
       }
+
+      // free molecules go on a canvas over the schematic: there can be tens of thousands
+      const crowd = document.querySelector(".crowd"),
+        cx = crowd.getContext("2d");
+      function drawCrowd() {
+        if (!free) return;
+        const w = Math.round(crowd.clientWidth * devicePixelRatio),
+          h = Math.round(crowd.clientHeight * devicePixelRatio);
+        if (crowd.width !== w || crowd.height !== h) {
+          crowd.width = w;
+          crowd.height = h;
+        } else cx.clearRect(0, 0, w, h);
+        cx.setTransform(w / 600, 0, 0, h / 520, 0, 0);
+        const css = getComputedStyle(document.documentElement),
+          colA = css.getPropertyValue("--r").trim(),
+          colB = css.getPropertyValue("--nr").trim();
+        const { rad, max, pts } = free,
+          s = rad * 1.2,
+          nA = Math.min(free.kA, max),
+          nB = Math.min(free.kB, max);
+        cx.globalAlpha = ALPHA;
+        // interleaved so neither ligand hides the other
+        for (let i = 0; i < Math.max(nA, nB); i++) {
+          if (i < nA) {
+            const p = pts[2 * i];
+            cx.fillStyle = colA;
+            cx.beginPath();
+            cx.arc(p.x, p.y, rad, 0, 2 * Math.PI);
+            cx.fill();
+          }
+          if (i < nB) {
+            const p = pts[2 * i + 1];
+            cx.fillStyle = colB;
+            cx.beginPath();
+            cx.moveTo(p.x, p.y - s);
+            cx.lineTo(p.x + s, p.y);
+            cx.lineTo(p.x, p.y + s);
+            cx.lineTo(p.x - s, p.y);
+            cx.fill();
+          }
+        }
+      }
+      new ResizeObserver(drawCrowd).observe(crowd);
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawCrowd);
+
+      const zoomBtns = document.querySelectorAll(".zoom button");
+      zoomBtns.forEach((b) =>
+        b.addEventListener("click", () => {
+          zi = Math.min(ZOOMS.length - 1, Math.max(0, zi + +b.dataset.z));
+          render();
+        }),
+      );
 
       // ---------- Render ----------
       function render() {
@@ -708,16 +1022,33 @@
           r = 1 + kbB;
         document.getElementById("doseV").textContent = fmtConc(A);
         document.getElementById("antV").textContent = `${BnM} nM`;
+        document.getElementById("bView").textContent = `${BnM} nM`;
         document.getElementById("kbV").textContent = `${sciTxt(Kb)} M⁻¹`;
         katex.render(
-          `\\begin{aligned} r &= 1 + K_B[B] \\\\[0.6em] &= 1 + (${sciTex(Kb)})(${sciTex(BM)}) = \\mathbf{${fmtR(r)}} \\end{aligned}`,
+          `\\begin{aligned} \\frac{D_2}{D_1} &= \\frac{\\text{${fmtConc(A * r)}}}{\\text{${fmtConc(A)}}} \\\\[0.8em] &= 1 + K_B[B] \\\\[0.6em] &= 1 + (${sciTex(Kb)})(${sciTex(BM)}) = \\mathbf{${fmtR(r)}} \\end{aligned}`,
           document.getElementById("eq"),
-          { displayMode: true, throwOnError: false },
+          { displayMode: true, throwOnError: false, strict: false },
         );
         drawGraph(kbB, r);
-        drawSchematic(BnM, kbB);
+        drawSchematic(BnM, kbB, r);
       }
       [antEl, kbEl].forEach((s) => s.addEventListener("input", render));
+
+      let view = "d2";
+      const viewBtns = document.querySelectorAll(".view button");
+      function setView(v) {
+        view = v;
+        viewBtns.forEach((b) =>
+          b.setAttribute("aria-pressed", b.dataset.view === v),
+        );
+        render();
+      }
+      viewBtns.forEach((b) =>
+        b.addEventListener("click", () => setView(b.dataset.view)),
+      );
+      viewBtns.forEach((b) =>
+        b.setAttribute("aria-pressed", b.dataset.view === view),
+      );
       setScale("log");
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
