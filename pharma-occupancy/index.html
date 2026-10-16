@@ -194,6 +194,40 @@
         stroke-width: 2.5;
       }
 
+      .xscale {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.25rem;
+      }
+      .xscale button {
+        font: 0.75rem var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        padding: 0.2rem 0.65rem;
+        cursor: pointer;
+      }
+      .xscale button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .xscale button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .xscale button:hover {
+        color: var(--ink);
+      }
+      .xscale button[aria-pressed="true"] {
+        background: var(--tint);
+        color: var(--ink);
+      }
+      .xscale button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+
       /* schematic */
       .sch-wrap {
         border: 1px solid var(--rule);
@@ -303,6 +337,10 @@
             role="img"
             aria-label="Occupancy alpha against agonist concentration, rising to Bmax"
           ></svg>
+          <div class="xscale" role="group" aria-label="x-axis scale">
+            <button type="button" data-scale="lin">Linear</button
+            ><button type="button" data-scale="log">Log</button>
+          </div>
           <div class="sliders">
             <label for="dose"
               ><span>[A]</span
@@ -345,8 +383,33 @@
       const doseEl = document.getElementById("dose"),
         kaEl = document.getElementById("ka");
       const N = 16,
-        MAXFREE = 48,
-        AMAX = 1000; // nM
+        MAXFREE = 48;
+
+      // x-axis scales: the slider and graph both work in "v" (nM, or log10 nM)
+      const pow10 = (e) =>
+        `10<tspan baseline-shift="super" font-size="9">${String(e).replace("-", "−")}</tspan>`;
+      const SCALES = {
+        lin: {
+          min: 0,
+          max: 1000,
+          step: 5,
+          to: (a) => a,
+          from: (v) => v,
+          ticks: [0, 200, 400, 600, 800, 1000].map((v) => [v, v]),
+          label: "[A] (nM)",
+        },
+        log: {
+          min: -1,
+          max: 4,
+          step: 0.05,
+          to: Math.log10,
+          from: (v) => Math.pow(10, v),
+          ticks: [-1, 0, 1, 2, 3, 4].map((v) => [v, pow10(v - 9)]),
+          label: "[A] (M)",
+        },
+      };
+      let scale = SCALES.lin,
+        A = 150; // [A] in nM
       const alpha = (AnM, logKa) => {
         const x = Math.pow(10, logKa) * AnM * 1e-9;
         return x / (1 + x);
@@ -375,11 +438,20 @@
           .join("");
         return `${m} × 10${e < 0 ? "⁻" : ""}${s}`;
       };
+      const fmtConc = (nM) =>
+        nM === 0
+          ? "0 nM"
+          : nM < 1000
+            ? `${+nM.toPrecision(nM < 1 ? 2 : 3)} nM`
+            : `${+(nM / 1e3).toPrecision(3)} µM`;
 
-      // ---------- Graph (linear [A]) ----------
+      // ---------- Graph ----------
       const G = { x0: 46, x1: 384, y0: 236, y1: 20 };
       const YMAX = 1.12;
-      const sx = (a) => G.x0 + (a / AMAX) * (G.x1 - G.x0);
+      const xv = (v) =>
+        G.x0 + ((v - scale.min) / (scale.max - scale.min)) * (G.x1 - G.x0);
+      const sx = (a) =>
+        xv(Math.min(scale.max, Math.max(scale.min, scale.to(a))));
       const sy = (t) => G.y0 - (t / YMAX) * (G.y0 - G.y1);
       const graph = document.getElementById("graph");
 
@@ -389,20 +461,20 @@
           s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(t)}" y2="${sy(t)}"/>`;
           s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t.toFixed(2)}</text>`;
         }
-        for (let a = 0; a <= AMAX; a += 200) {
-          s += `<line class="axis" x1="${sx(a)}" x2="${sx(a)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
-          s += `<text class="tick" x="${sx(a)}" y="${G.y0 + 20}">${a}</text>`;
+        for (const [v, label] of scale.ticks) {
+          s += `<line class="axis" x1="${xv(v)}" x2="${xv(v)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
+          s += `<text class="tick" x="${xv(v)}" y="${G.y0 + 20}">${label}</text>`;
         }
         s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
         s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
-        s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[A] (nM)</text>`;
+        s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">${scale.label}</text>`;
         s += `<text class="alabel" x="14" y="${(G.y0 + G.y1) / 2}">α</text>`;
         // Bmax asymptote
         s += `<line class="bmax" x1="${G.x0}" x2="${G.x1}" y1="${sy(1)}" y2="${sy(1)}"/>`;
         s += `<text class="bmaxl" x="${G.x1}" y="${sy(1) - 7}">B<tspan baseline-shift="sub" font-size="10" font-style="normal">max</tspan></text>`;
         // 1/KA guide, if on the axis
         const half = 1e9 / Math.pow(10, logKa);
-        if (half <= AMAX) {
+        if (half >= scale.from(scale.min) && half <= scale.from(scale.max)) {
           const kx = sx(half),
             ky = sy(0.5);
           s += `<path class="ka" d="M${G.x0},${ky} H${kx} V${G.y0}"/>`;
@@ -411,12 +483,12 @@
         // curve
         let d = "";
         for (let i = 0; i <= 200; i++) {
-          const a = (AMAX * i) / 200;
+          const v = scale.min + ((scale.max - scale.min) * i) / 200;
           d +=
             (i ? "L" : "M") +
-            sx(a).toFixed(1) +
+            xv(v).toFixed(1) +
             "," +
-            sy(alpha(a, logKa)).toFixed(1);
+            sy(alpha(scale.from(v), logKa)).toFixed(1);
         }
         s += `<path class="curve" d="${d}"/>`;
         const t = alpha(A, logKa),
@@ -430,13 +502,32 @@
       function setFromPointer(e) {
         const r = graph.getBoundingClientRect();
         const x = ((e.clientX - r.left) / r.width) * 400;
-        const a = Math.min(
-          AMAX,
-          Math.max(0, ((x - G.x0) / (G.x1 - G.x0)) * AMAX),
-        );
-        doseEl.value = Math.round(a / 5) * 5;
+        const f = Math.min(1, Math.max(0, (x - G.x0) / (G.x1 - G.x0)));
+        doseEl.value = scale.min + f * (scale.max - scale.min); // the slider snaps to its step
+        A = scale.from(+doseEl.value);
         render();
       }
+      doseEl.addEventListener("input", () => {
+        A = scale.from(+doseEl.value);
+        render();
+      });
+
+      const scaleBtns = document.querySelectorAll(".xscale button");
+      function setScale(key) {
+        scale = SCALES[key];
+        doseEl.min = scale.min;
+        doseEl.max = scale.max;
+        doseEl.step = scale.step;
+        doseEl.value = Math.max(scale.min, scale.to(A)); // clamps and snaps to the new range (log10 0 = -∞)
+        A = scale.from(+doseEl.value);
+        scaleBtns.forEach((b) =>
+          b.setAttribute("aria-pressed", b.dataset.scale === key),
+        );
+        render();
+      }
+      scaleBtns.forEach((b) =>
+        b.addEventListener("click", () => setScale(b.dataset.scale)),
+      );
       graph.addEventListener("pointerdown", (e) => {
         graph.setPointerCapture(e.pointerId);
         setFromPointer(e);
@@ -523,20 +614,20 @@
         const bound = Math.round(t * N);
         const on = new Set(order.slice(0, bound));
         recs.forEach((g, i) => g.classList.toggle("bound", on.has(i)));
-        const k = Math.round((MAXFREE * A) / AMAX);
+        // free agonist count follows the slider position, so it fills on either scale
+        const k = Math.round((MAXFREE * (sx(A) - G.x0)) / (G.x1 - G.x0));
         frees.forEach((c, i) => c.setAttribute("opacity", i < k ? 1 : 0));
         countEl.textContent = `${bound} / ${N}`;
       }
 
       // ---------- Render ----------
       function render() {
-        const A = +doseEl.value,
-          logKa = +kaEl.value;
+        const logKa = +kaEl.value;
         const Ka = Math.pow(10, logKa),
           AM = A * 1e-9,
           x = Ka * AM,
           t = x / (1 + x);
-        document.getElementById("doseV").textContent = `${A} nM`;
+        document.getElementById("doseV").textContent = fmtConc(A);
         document.getElementById("kaV").textContent = `${sciTxt(Ka)} M⁻¹`;
         const prod = `(${sciTex(Ka)})(${sciTex(AM)})`;
         katex.render(
@@ -547,8 +638,8 @@
         drawGraph(A, logKa);
         drawSchematic(A, t);
       }
-      [doseEl, kaEl].forEach((s) => s.addEventListener("input", render));
-      render();
+      kaEl.addEventListener("input", render);
+      setScale("lin");
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="../assets/qr.js"></script>
