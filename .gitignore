@@ -32,3 +32,6 @@ venv/
 # Editor/OS leftovers
 *.swp
 *~
+
+# Docs etc
+TODO.md
