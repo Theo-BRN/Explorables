@@ -323,11 +323,46 @@
           transition: none;
         }
       }
+      .series {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        margin-top: 3rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+      }
+      .series a {
+        display: grid;
+        gap: 0.15rem;
+        color: inherit;
+        text-decoration: none;
+      }
+      .series .next {
+        margin-left: auto;
+        text-align: right;
+      }
+      .series .lbl {
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .series .nm {
+        font-weight: 600;
+      }
+      .series a:hover .nm {
+        color: var(--r);
+      }
+      .series a:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
     </style>
   </head>
   <body>
     <main>
-      <a class="back" href="../"><span aria-hidden="true">←</span> Explorables</a>
+      <a class="back" href="../../#pharmacology"><span aria-hidden="true">←</span> Explorables</a>
       <h1>Receptor Occupancy</h1>
       <div class="grid">
         <div class="left">
@@ -376,6 +411,12 @@
           </div>
         </div>
       </div>
+      <nav class="series" aria-label="Pharmacology series">
+        <a class="next" href="../affinity-efficacy/">
+          <span class="lbl">Next <span aria-hidden="true">→</span></span>
+          <span class="nm">2 · Affinity and Efficacy</span>
+        </a>
+      </nav>
     </main>
 
 
@@ -642,6 +683,6 @@
       setScale("lin");
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="../assets/qr.js"></script>
+    <script src="../../assets/qr.js"></script>
   </body>
 </html>
