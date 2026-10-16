@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"
+    />
+    <title>Affinity and Efficacy</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Layout: left = log-dose graph and sliders; right = reaction + membrane schematic. Stacks on phones.
+         Under the hood this is the operational model (tau = efficacy x receptor density), but no maths is shown. */
+      :root {
+        --paper: #f5f7fa;
+        --ink: #1d2733;
+        --muted: #5b6878;
+        --r: #2f6fb3;
+        --resp: #a85a00;
+        --rule: #d5dce5;
+        --tint: #dde8f5;
+        --lipid: #c9d2dd;
+        --cyto: #eaeef3;
+        --serif: "Source Serif 4", Georgia, serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #141a21;
+          --ink: #e3e8ee;
+          --muted: #93a0b0;
+          --r: #7fb1ea;
+          --resp: #f0a54f;
+          --rule: #2c3643;
+          --tint: #1f3149;
+          --lipid: #34404e;
+          --cyto: #19212a;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --paper: #141a21;
+        --ink: #e3e8ee;
+        --muted: #93a0b0;
+        --r: #7fb1ea;
+        --resp: #f0a54f;
+        --rule: #2c3643;
+        --tint: #1f3149;
+        --lipid: #34404e;
+        --cyto: #19212a;
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 1.0625rem/1.65 var(--serif);
+      }
+      main {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding-block: 2.5rem;
+        padding-inline: 1.25rem;
+      }
+      h1 {
+        font-weight: 600;
+        font-size: 1.7rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .grid {
+        display: grid;
+        gap: 2rem 3rem;
+        margin-top: 1.75rem;
+        align-items: start;
+      }
+      @media (min-width: 58rem) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        }
+      }
+      .left,
+      .right {
+        min-width: 0;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      label {
+        display: grid;
+        grid-template-columns: 5.5rem 1fr 6.5rem;
+        align-items: center;
+        gap: 1rem;
+        margin: 0.6rem 0;
+      }
+      label > span:last-child {
+        text-align: right;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      label.lig > span:first-child {
+        font-style: italic;
+      }
+      label.eff > span:first-child {
+        color: var(--resp);
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--ink);
+      }
+      input[type="range"]:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 4px;
+      }
+      .sliders {
+        margin-top: 0.5rem;
+      }
+
+      .legend {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1.25rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .legend svg {
+        width: 1.6rem;
+        height: 0.5rem;
+      }
+
+      /* graph */
+      #graph {
+        cursor: crosshair;
+        touch-action: none;
+      }
+      .axis {
+        stroke: var(--muted);
+        stroke-width: 1;
+      }
+      .grid-l {
+        stroke: var(--rule);
+        stroke-width: 1;
+      }
+      .tick {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        text-anchor: middle;
+      }
+      .tick.y {
+        text-anchor: end;
+        dominant-baseline: central;
+      }
+      .tick.yr {
+        text-anchor: start;
+      }
+      .alabel {
+        fill: var(--muted);
+        font: italic 14px var(--serif);
+        text-anchor: middle;
+      }
+      .alabel.o {
+        fill: var(--r);
+      }
+      .alabel.e {
+        fill: var(--resp);
+      }
+      /* semi-log paper: decade lines plus fainter 2..9 lines */
+      .grid-v {
+        stroke: var(--rule);
+        stroke-width: 1;
+      }
+      .grid-v.minor {
+        opacity: 0.45;
+      }
+      .occ {
+        fill: none;
+        stroke: var(--r);
+        stroke-width: 2.5;
+      }
+      .resp {
+        fill: none;
+        stroke: var(--resp);
+        stroke-width: 2.5;
+        stroke-dasharray: 7 4;
+      }
+      .kd {
+        stroke: var(--r);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 4;
+        fill: none;
+      }
+      .kdl {
+        fill: var(--r);
+        font: 13px var(--serif);
+        paint-order: stroke;
+        stroke: var(--paper);
+        stroke-width: 4px;
+      }
+      .ec {
+        stroke: var(--resp);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 4;
+        fill: none;
+      }
+      .ecl {
+        fill: var(--resp);
+        font: 13px var(--serif);
+        paint-order: stroke;
+        stroke: var(--paper);
+        stroke-width: 4px;
+        text-anchor: end;
+      }
+      .drop {
+        stroke: var(--ink);
+        stroke-width: 1;
+        stroke-dasharray: 2 3;
+        opacity: 0.5;
+        fill: none;
+      }
+      .pt {
+        fill: var(--paper);
+        stroke-width: 2.5;
+      }
+      .pt.o {
+        stroke: var(--r);
+      }
+      .pt.e {
+        stroke: var(--resp);
+      }
+
+      /* reaction */
+      .reaction {
+        font-size: 1.3rem;
+        overflow-x: auto;
+        margin: -0.75rem 0 0.5rem;
+      }
+      .reaction .lig {
+        color: var(--r);
+      }
+      .reaction .resp {
+        color: var(--resp);
+      }
+
+      /* schematic */
+      .sch-wrap {
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .zone {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .count {
+        fill: var(--ink);
+        font: 600 15px var(--serif);
+        text-anchor: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .cyto {
+        fill: var(--cyto);
+      }
+      .ecf {
+        fill: var(--paper);
+      }
+      .head {
+        fill: var(--lipid);
+      }
+      .tail {
+        stroke: var(--lipid);
+        stroke-width: 1.5;
+      }
+      .rec path {
+        fill: var(--tint);
+        stroke: var(--muted);
+        stroke-width: 1.25;
+        transition: stroke 0.3s;
+      }
+      .rec.bound path {
+        stroke: var(--r);
+        stroke-width: 2;
+      }
+      .lig {
+        fill: var(--r);
+      }
+      .free {
+        transition: opacity 0.3s;
+      }
+      .rec .lig {
+        opacity: 0;
+        transform: translateY(-34px);
+        transform-box: fill-box;
+        transition:
+          opacity 0.3s,
+          transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+      .rec.bound .lig {
+        opacity: 1;
+        transform: none;
+      }
+      .sig {
+        stroke: var(--resp);
+        stroke-width: 2.5;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .rec.active .sig {
+        opacity: 1;
+      }
+      .sighead {
+        fill: var(--resp);
+      }
+      .rword {
+        fill: var(--resp);
+        font: 600 17px var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-anchor: middle;
+      }
+      .rbar-bg {
+        fill: var(--rule);
+      }
+      .rbar {
+        fill: var(--resp);
+        transition: width 0.3s;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rec .lig,
+        .free,
+        .rec path,
+        .sig,
+        .rbar {
+          transition: none;
+        }
+      }
+
+      .back {
+        display: inline-flex;
+        gap: 0.4em;
+        margin-bottom: 0.9rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+      .back:hover {
+        color: var(--ink);
+      }
+      .back:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+      .back span {
+        transition: transform 0.15s;
+      }
+      .back:hover span {
+        transform: translateX(-3px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .back span {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="../"><span aria-hidden="true">←</span> Explorables</a>
+      <h1>Affinity and Efficacy</h1>
+      <div class="grid">
+        <div class="left">
+          <svg
+            id="graph"
+            viewBox="0 0 400 280"
+            role="img"
+            aria-label="Receptor occupancy and response against log ligand concentration; the response curve always sits at or left of the occupancy curve"
+          ></svg>
+          <div class="legend" aria-hidden="true">
+            <span
+              ><svg viewBox="0 0 26 8">
+                <line class="occ" x1="0" x2="26" y1="4" y2="4" /></svg
+              >Occupancy</span
+            >
+            <span
+              ><svg viewBox="0 0 26 8">
+                <line class="resp" x1="0" x2="26" y1="4" y2="4" /></svg
+              >Response</span
+            >
+          </div>
+          <div class="sliders">
+            <label for="dose" class="lig"
+              ><span>[L]</span
+              ><input
+                id="dose"
+                type="range"
+                min="-2"
+                max="6"
+                step="0.05"
+                value="1.5" /><span id="doseV"></span
+            ></label>
+            <label for="aff"
+              ><span>Affinity</span
+              ><input
+                id="aff"
+                type="range"
+                min="-4"
+                max="0"
+                step="0.05"
+                value="-2" /><span id="affV"></span
+            ></label>
+            <label for="eff" class="eff"
+              ><span>Efficacy</span
+              ><input
+                id="eff"
+                type="range"
+                min="-1"
+                max="2"
+                step="0.05"
+                value="0.5" /><span id="effV"></span
+            ></label>
+            <label for="nrec"
+              ><span>Receptors</span
+              ><input
+                id="nrec"
+                type="range"
+                min="2"
+                max="20"
+                step="1"
+                value="10" /><span id="nrecV"></span
+            ></label>
+          </div>
+        </div>
+        <div class="right">
+          <div class="reaction" id="rxn"></div>
+          <div class="sch-wrap">
+            <svg
+              id="sch"
+              viewBox="0 0 600 520"
+              role="img"
+              aria-label="Membrane with receptors; bound receptors may signal into the cell, adding to the response"
+            ></svg>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const doseEl = document.getElementById("dose"),
+        affEl = document.getElementById("aff"),
+        effEl = document.getElementById("eff"),
+        nrecEl = document.getElementById("nrec");
+      const MAXN = 20,
+        NREF = 10, // receptor count at which tau equals the efficacy value
+        MAXFREE = 40,
+        LMIN = -2,
+        LMAX = 6; // log10 [L] (nM) axis range
+
+      // Operational model, kept off the page: tau = efficacy x (receptors / NREF)
+      const occ = (L, Kd) => L / (Kd + L);
+      const resp = (L, Kd, tau) => {
+        const s = tau * occ(L, Kd); // stimulus
+        return s / (1 + s);
+      };
+
+      // seeded RNG so the picture is identical on every load
+      let seed = 23;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      const pow10 = (e) =>
+        `10<tspan baseline-shift="super" font-size="9">${String(e).replace("-", "−")}</tspan>`;
+      const fmtConc = (nM) =>
+        nM < 1000
+          ? `${+nM.toPrecision(nM < 1 ? 2 : 3)} nM`
+          : nM < 1e6
+            ? `${+(nM / 1e3).toPrecision(3)} µM`
+            : `${+(nM / 1e6).toPrecision(3)} mM`;
+
+      katex.render(
+        "\\htmlClass{lig}{\\mathrm{L}} + \\mathrm{R} \\;\\xrightleftharpoons{\\text{affinity}}\\; \\mathrm{LR} \\;\\htmlClass{resp}{\\xrightarrow{\\text{efficacy}}\\; \\text{Response}}",
+        document.getElementById("rxn"),
+        {
+          displayMode: true,
+          throwOnError: false,
+          trust: (ctx) => ctx.command === "\\htmlClass",
+        },
+      );
+
+      // ---------- Graph (log [L]) ----------
+      const G = { x0: 50, x1: 350, y0: 236, y1: 20 };
+      const YMAX = 1.12;
+      const sx = (L) =>
+        G.x0 +
+        ((Math.min(LMAX, Math.max(LMIN, Math.log10(L))) - LMIN) /
+          (LMAX - LMIN)) *
+          (G.x1 - G.x0);
+      const sy = (t) => G.y0 - (t / YMAX) * (G.y0 - G.y1);
+      const graph = document.getElementById("graph");
+
+      const path = (f) => {
+        let d = "";
+        for (let i = 0; i <= 200; i++) {
+          const L = Math.pow(10, LMIN + ((LMAX - LMIN) * i) / 200);
+          d += (i ? "L" : "M") + sx(L).toFixed(1) + "," + sy(f(L)).toFixed(1);
+        }
+        return d;
+      };
+
+      function drawGraph(L, Kd, tau) {
+        let s = "";
+        // shared gridlines; occupancy (0-1) on the left axis, % response on the right
+        for (let t = 0; t <= 1.001; t += 0.25) {
+          s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(t)}" y2="${sy(t)}"/>`;
+          s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t.toFixed(2)}</text>`;
+          s += `<text class="tick y yr" x="${G.x1 + 8}" y="${sy(t)}">${t * 100}</text>`;
+        }
+        for (let v = LMIN; v <= LMAX; v++) {
+          const x = sx(Math.pow(10, v));
+          s += `<line class="grid-v" x1="${x}" x2="${x}" y1="${G.y1}" y2="${G.y0}"/>`;
+          s += `<line class="axis" x1="${x}" x2="${x}" y1="${G.y0}" y2="${G.y0 + 6}"/>`;
+          s += `<text class="tick" x="${x}" y="${G.y0 + 20}">${pow10(v - 9)}</text>`;
+          if (v === LMAX) break;
+          for (let m = 2; m <= 9; m++) {
+            const xm = sx(m * Math.pow(10, v));
+            s += `<line class="grid-v minor" x1="${xm}" x2="${xm}" y1="${G.y1}" y2="${G.y0}"/>`;
+            s += `<line class="axis" x1="${xm}" x2="${xm}" y1="${G.y0}" y2="${G.y0 + 3}"/>`;
+          }
+        }
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
+        s += `<line class="axis" x1="${G.x1}" x2="${G.x1}" y1="${G.y0}" y2="${G.y1}"/>`;
+        s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[L] (M)</text>`;
+        const ym = (G.y0 + G.y1) / 2;
+        s += `<text class="alabel o" transform="translate(12 ${ym}) rotate(-90)">Occupancy</text>`;
+        s += `<text class="alabel e" transform="translate(392 ${ym}) rotate(90)">% Response</text>`;
+
+        // K_D: half occupancy. EC50: half of this ligand's own maximum response.
+        const kx = sx(Kd);
+        s += `<path class="kd" d="M${G.x0},${sy(0.5)} H${kx} V${G.y0}"/>`;
+        const labels = `<text class="kdl" x="${kx + 5}" y="${G.y0 - 7}">K<tspan baseline-shift="sub" font-size="9">D</tspan></text>`;
+        let ecLabel = "";
+        const ec50 = Kd / (1 + tau),
+          half = (0.5 * tau) / (1 + tau),
+          ex = sx(ec50);
+        if (ec50 >= Math.pow(10, LMIN)) {
+          s += `<path class="ec" d="M${ex},${sy(half)} V${G.y0}"/>`;
+          ecLabel = `<text class="ecl" x="${ex - 5}" y="${G.y0 - 7}">EC<tspan baseline-shift="sub" font-size="9">50</tspan></text>`;
+        }
+
+        s += `<path class="occ" d="${path((x) => occ(x, Kd))}"/>`;
+        s += `<path class="resp" d="${path((x) => resp(x, Kd, tau))}"/>`;
+        s += labels + ecLabel; // on top of the curves
+
+        const px = sx(L),
+          po = sy(occ(L, Kd)),
+          pe = sy(resp(L, Kd, tau));
+        s += `<path class="drop" d="M${px},${G.y0} V${Math.min(po, pe)}"/>`;
+        s += `<circle class="pt o" cx="${px}" cy="${po}" r="5"/>`;
+        s += `<circle class="pt e" cx="${px}" cy="${pe}" r="6"/>`;
+        graph.innerHTML = s;
+      }
+
+      function setFromPointer(e) {
+        const rect = graph.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 400;
+        const f = Math.min(1, Math.max(0, (x - G.x0) / (G.x1 - G.x0)));
+        doseEl.value = LMIN + f * (LMAX - LMIN); // the slider snaps to its step
+        render();
+      }
+      graph.addEventListener("pointerdown", (e) => {
+        graph.setPointerCapture(e.pointerId);
+        setFromPointer(e);
+      });
+      graph.addEventListener("pointermove", (e) => {
+        if (graph.hasPointerCapture(e.pointerId)) setFromPointer(e);
+      });
+
+      // ---------- Schematic ----------
+      const NS = "http://www.w3.org/2000/svg";
+      const sch = document.getElementById("sch");
+      const H = 520,
+        MEM_TOP = 296,
+        MEM_BOT = 346;
+      const T = MEM_TOP - 40,
+        B = MEM_BOT + 34;
+      const el = (tag, attrs, parent) => {
+        const n = document.createElementNS(NS, tag);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        (parent || sch).appendChild(n);
+        return n;
+      };
+
+      el("defs", {}).innerHTML =
+        `<marker id="sh" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="sighead" d="M0,0 L10,5 L0,10 z"/></marker>`;
+      el("rect", { class: "ecf", x: 0, y: 0, width: 600, height: MEM_BOT });
+      el("rect", {
+        class: "cyto",
+        x: 0,
+        y: MEM_BOT,
+        width: 600,
+        height: H - MEM_BOT,
+      });
+      el("text", { class: "zone", x: 16, y: 26 }).textContent = "Extracellular";
+      el("text", { class: "zone", x: 16, y: H - 14 }).textContent =
+        "Intracellular";
+      const countEl = el("text", { class: "count", x: 584, y: 27 });
+      for (let x = 5; x < 600; x += 10) {
+        for (const [y1, y2] of [
+          [MEM_TOP + 4, MEM_TOP + 22],
+          [MEM_BOT - 22, MEM_BOT - 4],
+        ]) {
+          el("line", { class: "tail", x1: x - 1.5, y1, x2: x - 1.5, y2 });
+          el("line", { class: "tail", x1: x + 1.5, y1, x2: x + 1.5, y2 });
+        }
+        el("circle", { class: "head", cx: x, cy: MEM_TOP, r: 4.5 });
+        el("circle", { class: "head", cx: x, cy: MEM_BOT, r: 4.5 });
+      }
+
+      // Response readout: the word, plus a bar showing how much of the maximum is reached
+      const RW = 220;
+      el("text", { class: "rword", x: 300, y: 456 }).textContent = "Response";
+      el("rect", {
+        class: "rbar-bg",
+        x: 300 - RW / 2,
+        y: 468,
+        width: RW,
+        height: 8,
+        rx: 4,
+      });
+      const rbar = el("rect", {
+        class: "rbar",
+        x: 300 - RW / 2,
+        y: 468,
+        width: 0,
+        height: 8,
+        rx: 4,
+      });
+
+      // Per-receptor fixed randomness: binding priority, and a threshold for whether it signals once bound
+      const prio = Array.from({ length: MAXN }, rnd),
+        chance = Array.from({ length: MAXN }, rnd);
+
+      // receptors: rebuilt when the count changes
+      const recLayer = el("g", {});
+      let recs = [],
+        builtN = 0;
+      function buildReceptors(n) {
+        recLayer.replaceChildren();
+        recs = [];
+        const gap = 600 / n,
+          w = 12,
+          nr = 8.5;
+        for (let i = 0; i < n; i++) {
+          const x = gap / 2 + i * gap;
+          const g = el("g", { class: "rec" }, recLayer);
+          el(
+            "path",
+            {
+              d: `M${x - w},${B - 6} V${T + 5} Q${x - w},${T} ${x - w + 5},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - 5} Q${x + w},${T} ${x + w},${T + 5} V${B - 6} Q${x + w},${B} ${x + w - 6},${B} H${x - w + 6} Q${x - w},${B} ${x - w},${B - 6} Z`,
+            },
+            g,
+          );
+          el("circle", { class: "lig", cx: x, cy: T + 1, r: 7 }, g);
+          el(
+            "line",
+            {
+              class: "sig",
+              x1: x,
+              y1: B + 8,
+              x2: x,
+              y2: B + 38,
+              "marker-end": "url(#sh)",
+            },
+            g,
+          );
+          recs.push(g);
+        }
+        builtN = n;
+      }
+
+      // free ligand at fixed, non-overlapping positions
+      const pts = [];
+      while (pts.length < MAXFREE) {
+        const p = { x: 20 + rnd() * 560, y: 48 + rnd() * (T - 78) };
+        if (p.x > 470 && p.y < 50) continue; // keep clear of the count
+        if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 22 ** 2))
+          pts.push(p);
+      }
+      const frees = pts.map((p) =>
+        el("circle", { class: "lig free", cx: p.x, cy: p.y, r: 7, opacity: 0 }),
+      );
+
+      function drawSchematic(L, Kd, eff, n, tau) {
+        if (n !== builtN) buildReceptors(n);
+        const nb = Math.round(occ(L, Kd) * n);
+        const bound = new Set(
+          [...Array(n).keys()].sort((a, b) => prio[a] - prio[b]).slice(0, nb),
+        );
+        const p = eff / (1 + eff); // chance a bound receptor is signalling
+        recs.forEach((g, i) => {
+          g.classList.toggle("bound", bound.has(i));
+          g.classList.toggle("active", bound.has(i) && chance[i] < p);
+        });
+        const k = Math.round(
+          (MAXFREE * (Math.log10(L) - LMIN)) / (LMAX - LMIN),
+        );
+        frees.forEach((c, i) => c.setAttribute("opacity", i < k ? 1 : 0));
+        countEl.textContent = `${nb} / ${n}`;
+        rbar.setAttribute("width", RW * resp(L, Kd, tau));
+      }
+
+      // ---------- Render ----------
+      function render() {
+        const L = Math.pow(10, +doseEl.value),
+          Kd = Math.pow(10, -affEl.value), // nM; slider runs low -> high affinity
+          eff = Math.pow(10, +effEl.value),
+          n = +nrecEl.value,
+          tau = (eff * n) / NREF;
+        document.getElementById("doseV").textContent = fmtConc(L);
+        document.getElementById("affV").textContent = fmtConc(Kd);
+        document.getElementById("effV").textContent = +eff.toPrecision(2);
+        document.getElementById("nrecV").textContent = n;
+        drawGraph(L, Kd, tau);
+        drawSchematic(L, Kd, eff, n, tau);
+      }
+      [doseEl, affEl, effEl, nrecEl].forEach((s) =>
+        s.addEventListener("input", render),
+      );
+      render();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="../assets/qr.js"></script>
+  </body>
+</html>
