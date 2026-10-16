@@ -260,10 +260,40 @@
           transition: none;
         }
       }
+      .back {
+        display: inline-flex;
+        gap: 0.4em;
+        margin-bottom: 0.9rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+      .back:hover {
+        color: var(--ink);
+      }
+      .back:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+      .back span {
+        transition: transform 0.15s;
+      }
+      .back:hover span {
+        transform: translateX(-3px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .back span {
+          transition: none;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
+      <a class="back" href="../"><span aria-hidden="true">←</span> Explorables</a>
       <h1>Receptor Occupancy</h1>
       <div class="grid">
         <div class="left">
@@ -310,7 +340,6 @@
       </div>
     </main>
 
-    <footer><a href="../">Back to contents page</a></footer>
 
     <script>
       const doseEl = document.getElementById("dose"),
