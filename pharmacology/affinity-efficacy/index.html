@@ -148,6 +148,8 @@
       #graph {
         cursor: crosshair;
         touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
       }
       .axis {
         stroke: var(--muted);
@@ -552,13 +554,13 @@
         </div>
       </div>
       <nav class="series" aria-label="Pharmacology series">
-        <a class="prev" href="../saturation-binding/">
+        <a class="prev" href="../competition-binding/">
           <span class="lbl"><span aria-hidden="true">←</span> Previous</span>
-          <span class="nm">2 · Saturation Binding</span>
+          <span class="nm">3 · Competition Binding</span>
         </a>
         <a class="next" href="../dose-ratios/">
           <span class="lbl">Next <span aria-hidden="true">→</span></span>
-          <span class="nm">4 · Dose Ratios</span>
+          <span class="nm">5 · Dose Ratios</span>
         </a>
       </nav>
     </main>
@@ -685,6 +687,7 @@
         render();
       }
       graph.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); // otherwise a drag can start a text selection
         graph.setPointerCapture(e.pointerId);
         setFromPointer(e);
       });
@@ -874,7 +877,9 @@
         if (crowd.width !== w || crowd.height !== h) {
           crowd.width = w;
           crowd.height = h;
-        } else cx.clearRect(0, 0, w, h);
+        }
+        cx.setTransform(1, 0, 0, 1, 0, 0); // clear the whole canvas, not just the last transform's view of it
+        cx.clearRect(0, 0, w, h);
         cx.setTransform(w / 600, 0, 0, h / 520, 0, 0);
         cx.fillStyle = getComputedStyle(document.documentElement)
           .getPropertyValue("--r")

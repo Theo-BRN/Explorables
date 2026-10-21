@@ -578,9 +578,9 @@
           <span class="lbl"><span aria-hidden="true">←</span> Previous</span>
           <span class="nm">1 · Receptor Occupancy</span>
         </a>
-        <a class="next" href="../affinity-efficacy/">
+        <a class="next" href="../competition-binding/">
           <span class="lbl">Next <span aria-hidden="true">→</span></span>
-          <span class="nm">3 · Affinity and Efficacy</span>
+          <span class="nm">3 · Competition Binding</span>
         </a>
       </nav>
     </main>
@@ -824,7 +824,11 @@
         fpts = [];
       for (let tries = 0; fpts.length < 2 * SPREAD && tries < 200000; tries++) {
         const p = fpt();
-        if (fpts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > (FR * 3) ** 2)) fpts.push(p);
+        if (
+          fpts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > (FR * 3) ** 2) &&
+          sites.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > (LR + FR * 4) ** 2) // clear of the sticky sites
+        )
+          fpts.push(p);
       }
       const nUmax = Math.round(U * V * PER_NM_FL),
         nLmax = Math.round(LMAX * V * PER_NM_FL);

@@ -133,6 +133,8 @@
       #graph {
         cursor: crosshair;
         touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
       }
       .axis {
         stroke: var(--muted);
@@ -570,6 +572,7 @@
         b.addEventListener("click", () => setScale(b.dataset.scale)),
       );
       graph.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); // otherwise a drag can start a text selection
         graph.setPointerCapture(e.pointerId);
         setFromPointer(e);
       });
