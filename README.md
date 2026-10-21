@@ -1,9 +1,10 @@
 # Explorables
 
-Interactive explanations of concepts I'm interested in.
+Interactive explanations of concepts I'm interested in. Available [here](https://theo-brn.github.io/Explorables/)!
 
 ## Other Great Explorables
-- [Seeing Theory by Daniel Kunin (Brown University)](https://seeing-theory.brown.edu/) 
+
+- [Seeing Theory by Daniel Kunin (Brown University)](https://seeing-theory.brown.edu/)
 
 ## License
 
