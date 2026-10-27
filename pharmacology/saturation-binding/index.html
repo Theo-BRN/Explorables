@@ -193,13 +193,67 @@
         stroke-width: 4px;
         dominant-baseline: central;
       }
+      .under {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem 1rem;
+        margin-top: 0.25rem;
+      }
       .legend {
         display: flex;
         flex-wrap: wrap;
         gap: 0.25rem 1.25rem;
-        margin-top: 0.25rem;
         font-size: 0.9rem;
         color: var(--muted);
+      }
+      .legend [hidden] {
+        display: none;
+      }
+      .plot {
+        display: flex;
+        margin-left: auto;
+      }
+      .plot button {
+        font: 0.75rem var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        padding: 0.2rem 0.65rem;
+        cursor: pointer;
+      }
+      .plot button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .plot button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .plot button:hover {
+        color: var(--ink);
+      }
+      .plot button[aria-pressed="true"] {
+        background: var(--tint);
+        color: var(--ink);
+      }
+      .plot button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+      .fit {
+        stroke: var(--r);
+        stroke-width: 1.25;
+        stroke-dasharray: 2 4;
+        opacity: 0.7;
+      }
+      .pt.s {
+        stroke: var(--r);
+      }
+      .pt.s.on {
+        fill: var(--r);
       }
       .legend span {
         display: inline-flex;
@@ -504,22 +558,28 @@
             role="img"
             aria-label="Bound labelled ligand against its concentration: total binding, a straight non-specific line, and specific binding (their difference) saturating at Bmax"
           ></svg>
-          <div class="legend" aria-hidden="true">
-            <span
-              ><svg viewBox="0 0 26 8">
-                <line class="tb" x1="0" x2="26" y1="4" y2="4" /></svg
-              >Total (TB)</span
-            >
-            <span
-              ><svg viewBox="0 0 26 8">
-                <line class="nsb" x1="0" x2="26" y1="4" y2="4" /></svg
-              >Non-specific (NSB)</span
-            >
-            <span
-              ><svg viewBox="0 0 26 8">
-                <line class="sb" x1="0" x2="26" y1="4" y2="4" /></svg
-              >Specific (SB)</span
-            >
+          <div class="under">
+            <div class="legend" aria-hidden="true">
+              <span data-only="sat"
+                ><svg viewBox="0 0 26 8">
+                  <line class="tb" x1="0" x2="26" y1="4" y2="4" /></svg
+                >Total (TB)</span
+              >
+              <span data-only="sat"
+                ><svg viewBox="0 0 26 8">
+                  <line class="nsb" x1="0" x2="26" y1="4" y2="4" /></svg
+                >Non-specific (NSB)</span
+              >
+              <span
+                ><svg viewBox="0 0 26 8">
+                  <line class="sb" x1="0" x2="26" y1="4" y2="4" /></svg
+                >Specific (SB)</span
+              >
+            </div>
+            <div class="plot" role="group" aria-label="Plot">
+              <button type="button" data-plot="sat">Saturation</button
+              ><button type="button" data-plot="scat">Scatchard</button>
+            </div>
           </div>
           <div class="sliders">
             <label for="dose"
@@ -532,15 +592,15 @@
                 step="0.05"
                 value="4" /><span id="doseV"></span
             ></label>
-            <label for="kd"
-              ><span>K<sub>D</sub></span
+            <label for="ka"
+              ><span>K<sub>A</sub></span
               ><input
-                id="kd"
+                id="ka"
                 type="range"
-                min="-0.5"
-                max="0.5"
+                min="8.5"
+                max="9.5"
                 step="0.01"
-                value="0" /><span id="kdV"></span
+                value="9" /><span id="kaV"></span
             ></label>
             <label for="ns" class="plain"
               ><span>NSB</span
@@ -587,7 +647,7 @@
 
     <script>
       const doseEl = document.getElementById("dose"),
-        kdEl = document.getElementById("kd"),
+        kaEl = document.getElementById("ka"),
         nsEl = document.getElementById("ns");
       const PER_NM_FL = 0.6022, // molecules in 1 fL at 1 nM
         BMAX = 500, // fmol/mg protein
@@ -628,8 +688,24 @@
         return d;
       };
       const sub = (t, s) => `${t}<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+      const sciTxt = (v) => {
+        const e = Math.floor(Math.log10(v)),
+          sup = (n) =>
+            (n < 0 ? "⁻" : "") +
+            String(Math.abs(n))
+              .split("")
+              .map((d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d])
+              .join("");
+        return `${(v / Math.pow(10, e)).toFixed(1)} × 10${sup(e)}`;
+      };
+      const sciTex = (v) => {
+        const e = Math.floor(Math.log10(Math.abs(v)));
+        return `${(v / Math.pow(10, e)).toFixed(1)}\\times10^{${e}}`;
+      };
 
       function drawGraph(L, Kd, k) {
+        if (plot === "scat") return drawScatchard(L, Kd, k);
+        graph.setAttribute("aria-label", SAT_LABEL);
         let s = "";
         for (let b = 0; b <= YTOP; b += 250) {
           s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(b)}" y2="${sy(b)}"/>`;
@@ -645,14 +721,14 @@
         s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[L] (nM)</text>`;
         s += `<text class="alabel" transform="translate(12 ${(G.y0 + G.y1) / 2}) rotate(-90)">Bound (fmol/mg)</text>`;
 
-        // Bmax: the specific plateau. K_D: half of Bmax.
+        // Bmax: the specific plateau. 1/K_A: half of Bmax.
         s += `<line class="bmax" x1="${G.x0}" x2="${G.x1}" y1="${sy(BMAX)}" y2="${sy(BMAX)}"/>`;
         // label at whichever end the SB marker isn't
         const bmaxLeft = sx(L) > 300;
         s += `<text class="kdl" x="${bmaxLeft ? G.x0 + 6 : G.x1 - 4}" y="${sy(BMAX) - 6}" text-anchor="${bmaxLeft ? "start" : "end"}">${sub("B", "max")}</text>`;
         const kx = sx(Kd);
         s += `<path class="kd" d="M${G.x0},${sy(BMAX / 2)} H${kx} V${G.y0}"/>`;
-        s += `<text class="kdl" x="${kx + 5}" y="${G.y0 - 7}">${sub("K", "D")}</text>`;
+        s += `<text class="kdl" x="${kx + 5}" y="${G.y0 - 7}">1/${sub("K", "A")}</text>`;
 
         s += `<path class="nsb" d="${path((x) => nonspec(x, Kd, k))}"/>`;
         s += `<path class="tb" d="${path((x) => total(x, Kd, k))}"/>`;
@@ -673,11 +749,67 @@
         graph.innerHTML = s;
       }
 
+      // ---------- Scatchard: the same specific binding, replotted as SB/[L] against SB ----------
+      // A straight line: x-intercept Bmax, gradient -K_A. Free [L] is taken as added [L].
+      const SX = 600, // fmol/mg, x-axis
+        SY = 1600; // fmol/mg per nM, y-axis
+      const qx = (b) => G.x0 + (Math.min(SX, Math.max(0, b)) / SX) * (G.x1 - G.x0);
+      const qy = (r) => G.y0 - (Math.min(SY * 1.04, Math.max(0, r)) / (SY * 1.04)) * (G.y0 - G.y1);
+      const SAT_LABEL = graph.getAttribute("aria-label"),
+        SCAT_LABEL =
+          "Scatchard plot: specific binding divided by free ligand against specific binding, a straight line meeting the x-axis at Bmax with gradient minus K_A";
+
+      function drawScatchard(L, Kd, k) {
+        graph.setAttribute("aria-label", SCAT_LABEL);
+        let s = "";
+        for (let r = 0; r <= SY; r += 400) {
+          s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${qy(r)}" y2="${qy(r)}"/>`;
+          s += `<text class="tick y" x="${G.x0 - 8}" y="${qy(r)}">${r}</text>`;
+        }
+        for (let b = 0; b <= SX; b += 100) {
+          s += `<line class="axis" x1="${qx(b)}" x2="${qx(b)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
+          if (b % 200 === 0) s += `<text class="tick" x="${qx(b)}" y="${G.y0 + 20}">${b}</text>`;
+        }
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
+        s += `<text class="alabel" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">SB (fmol·mg⁻¹)</text>`;
+        s += `<text class="alabel" transform="translate(12 ${(G.y0 + G.y1) / 2}) rotate(-90)">SB / [L] (fmol·mg⁻¹·nM⁻¹)</text>`;
+
+        // the straight line the data fall on, carried on to both axes
+        s += `<line class="fit" x1="${qx(0)}" y1="${qy(BMAX / Kd)}" x2="${qx(BMAX)}" y2="${qy(0)}"/>`;
+        // Bmax read off where the line meets the x-axis
+        s += `<line class="axis" x1="${qx(BMAX)}" x2="${qx(BMAX)}" y1="${G.y0}" y2="${G.y0 + 5}" style="stroke: var(--r)"/>`;
+        s += `<text class="kdl" x="${qx(BMAX)}" y="${G.y0 + 20}" text-anchor="middle">${sub("B", "max")}</text>`;
+        // the data: every [L] on the slider's range
+        let d = "";
+        for (let i = 1; i <= 200; i++) {
+          const x = (LMAX * i) / 200,
+            b = spec(x, Kd, k);
+          d += (i > 1 ? "L" : "M") + qx(b).toFixed(1) + "," + qy(b / x).toFixed(1);
+        }
+        s += `<path class="sb" d="${d}"/>`;
+        // gradient label partway down the line
+        const mb = BMAX * 0.3;
+        s += `<text class="kdl" x="${qx(mb) + 8}" y="${qy((BMAX - mb) / Kd) - 8}">gradient = −${sub("K", "A")}</text>`;
+
+        if (L >= 0.05) {
+          const b = spec(L, Kd, k);
+          s += `<path class="drop" d="M${qx(b)},${G.y0} V${qy(b / L)}"/>`;
+          s += `<circle class="pt s on" cx="${qx(b)}" cy="${qy(b / L)}" r="5.5"/>`;
+        }
+        graph.innerHTML = s;
+      }
+
       function setFromPointer(e) {
         const rect = graph.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 400;
         const f = Math.min(1, Math.max(0, (x - G.x0) / (G.x1 - G.x0)));
-        doseEl.value = f * LMAX; // the slider snaps to its step
+        if (plot === "scat") {
+          // x is specific binding here: find the [L] that gives it
+          const b = Math.min(0.99, (f * SX) / BMAX),
+            Kd = 1e9 / Math.pow(10, +kaEl.value);
+          doseEl.value = (Kd * b) / (1 - b);
+        } else doseEl.value = f * LMAX; // the slider snaps to its step
         render();
       }
       graph.addEventListener("pointerdown", (e) => {
@@ -908,25 +1040,55 @@
       }
 
       // ---------- Render ----------
+      // Scatchard: read Bmax and K_A off the line, carrying the units through
+      function scatchardTex(Kd) {
+        const yi = +(BMAX / Kd).toPrecision(3), // y-intercept, fmol mg⁻¹ nM⁻¹
+          ka = +(1 / Kd).toPrecision(2); // nM⁻¹
+        const fm = "\\cancel{\\text{fmol mg}^{-1}}";
+        return `\\begin{aligned} \\text{x-intercept} &= B_{max} = \\mathbf{${BMAX}}\\ \\text{fmol mg}^{-1} \\\\[1.4em] \\text{Gradient} &= \\frac{\\Delta y}{\\Delta x} = -K_A \\\\[0.6em] &= \\frac{(0 - ${yi})\\ ${fm}\\ \\text{nM}^{-1}}{(${BMAX} - 0)\\ ${fm}} \\\\[0.6em] &= -${ka}\\ \\text{nM}^{-1} \\\\[1.4em] K_A &= ${ka}\\ \\text{nM}^{-1} = \\mathbf{${sciTex(ka * 1e9)}}\\ \\text{M}^{-1} \\end{aligned}`;
+      }
+
       function render() {
         const L = +doseEl.value,
-          Kd = Math.pow(10, +kdEl.value),
+          Ka = Math.pow(10, +kaEl.value), // M⁻¹
+          Kd = 1e9 / Ka, // nM, which the model works in
           k = +nsEl.value;
         document.getElementById("doseV").textContent = fmtConc(L);
-        document.getElementById("kdV").textContent = fmtConc(Kd);
+        document.getElementById("kaV").textContent = `${sciTxt(Ka)} M⁻¹`;
         document.getElementById("nsV").textContent = `${k} fmol/mg/nM`;
         document.getElementById("uView").textContent = fmtConc(U);
         const tb = Math.round(total(L, Kd, k)),
           nsb = Math.round(nonspec(L, Kd, k));
+        const sb = tb - nsb;
         katex.render(
-          `\\begin{aligned} \\text{SB} &= \\text{TB} - \\text{NSB} \\\\[0.4em] &= ${tb} - ${nsb} = \\mathbf{${tb - nsb}}\\ \\text{fmol/mg} \\end{aligned}`,
+          plot === "scat"
+            ? scatchardTex(Kd)
+            : `\\begin{aligned} \\text{SB} &= \\text{TB} - \\text{NSB} \\\\[0.4em] &= ${tb} - ${nsb} = \\mathbf{${sb}}\\ \\text{fmol/mg} \\end{aligned}`,
           document.getElementById("eq"),
           { displayMode: true, throwOnError: false },
         );
         drawGraph(L, Kd, k);
         drawSchematic(L, Kd, k);
       }
-      [doseEl, kdEl, nsEl].forEach((s) => s.addEventListener("input", render));
+      [doseEl, kaEl, nsEl].forEach((s) => s.addEventListener("input", render));
+
+      let plot = "sat";
+      const plotBtns = document.querySelectorAll(".plot button");
+      function setPlot(p) {
+        plot = p;
+        plotBtns.forEach((b) => b.setAttribute("aria-pressed", b.dataset.plot === p));
+        // Scatchard only replots specific binding
+        document
+          .querySelectorAll(".legend [data-only]")
+          .forEach((e) => (e.hidden = e.dataset.only !== p));
+      }
+      plotBtns.forEach((b) =>
+        b.addEventListener("click", () => {
+          setPlot(b.dataset.plot);
+          render();
+        }),
+      );
+      setPlot("sat");
 
       let view = "t";
       const viewBtns = document.querySelectorAll(".view button");
