@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"
+    />
+    <title>Two Ligands</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Layout: left = graph, sliders, live equation; right = static membrane schematic. Stacks on phones. */
+      :root {
+        --paper: #f5f7fa;
+        --ink: #1d2733;
+        --muted: #5b6878;
+        --r: #2f6fb3;
+        --nr: #b0422e;
+        --rule: #d5dce5;
+        --tint: #dde8f5;
+        --lipid: #c9d2dd;
+        --cyto: #eaeef3;
+        --serif: "Source Serif 4", Georgia, serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #141a21;
+          --ink: #e3e8ee;
+          --muted: #93a0b0;
+          --r: #7fb1ea;
+          --nr: #ec8a74;
+          --rule: #2c3643;
+          --tint: #1f3149;
+          --lipid: #34404e;
+          --cyto: #19212a;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --paper: #141a21;
+        --ink: #e3e8ee;
+        --muted: #93a0b0;
+        --r: #7fb1ea;
+        --nr: #ec8a74;
+        --rule: #2c3643;
+        --tint: #1f3149;
+        --lipid: #34404e;
+        --cyto: #19212a;
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 1.0625rem/1.65 var(--serif);
+      }
+      main {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding-block: 2.5rem;
+        padding-inline: 1.25rem;
+      }
+      h1 {
+        font-weight: 600;
+        font-size: 1.7rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .grid {
+        display: grid;
+        gap: 2rem 3rem;
+        margin-top: 1.75rem;
+        align-items: start;
+      }
+      @media (min-width: 58rem) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        }
+      }
+      .left,
+      .right {
+        min-width: 0;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      label {
+        display: grid;
+        grid-template-columns: 2.5rem 1fr 7.5rem;
+        align-items: center;
+        gap: 1rem;
+        margin: 0.6rem 0;
+      }
+      label > span:first-child {
+        font-style: italic;
+      }
+      label > span:last-child {
+        text-align: right;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--ink);
+      }
+      input[type="range"]:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 4px;
+      }
+      .sliders {
+        margin-top: 0.5rem;
+      }
+      .formula {
+        font-size: 1.1rem;
+        overflow-x: auto;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--rule);
+      }
+
+      /* graph */
+      #graph {
+        cursor: crosshair;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .axis {
+        stroke: var(--muted);
+        stroke-width: 1;
+      }
+      .grid-l {
+        stroke: var(--rule);
+        stroke-width: 1;
+      }
+      .tick {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        text-anchor: middle;
+      }
+      .tick.y {
+        text-anchor: end;
+        dominant-baseline: central;
+      }
+      .alabel {
+        fill: var(--muted);
+        font: italic 14px var(--serif);
+        text-anchor: middle;
+      }
+      .curve {
+        fill: none;
+        stroke: var(--r);
+        stroke-width: 2.5;
+      }
+      .bmax {
+        stroke: var(--ink);
+        stroke-width: 1.25;
+        stroke-dasharray: 6 4;
+      }
+      .bmaxl {
+        fill: var(--ink);
+        font: italic 14px var(--serif);
+        text-anchor: end;
+      }
+      .ka {
+        stroke: var(--nr);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 4;
+        fill: none;
+      }
+      .kal {
+        fill: var(--nr);
+        font: 13px var(--serif);
+      }
+      .drop {
+        stroke: var(--ink);
+        stroke-width: 1;
+        stroke-dasharray: 2 3;
+        opacity: 0.5;
+        fill: none;
+      }
+      .pt {
+        fill: var(--paper);
+        stroke: var(--ink);
+        stroke-width: 2.5;
+      }
+
+      .xscale {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.25rem;
+      }
+      .xscale button {
+        font: 0.75rem var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        padding: 0.2rem 0.65rem;
+        cursor: pointer;
+      }
+      .xscale button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .xscale button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .xscale button:hover {
+        color: var(--ink);
+      }
+      .xscale button[aria-pressed="true"] {
+        background: var(--tint);
+        color: var(--ink);
+      }
+      .xscale button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+
+      label.b > span:first-child {
+        color: var(--nr);
+      }
+      .curve.b {
+        stroke: var(--nr);
+      }
+      .pt.b {
+        stroke: var(--nr);
+      }
+      /* plot switch: alpha_A or alpha_B, styled like the schematic switches */
+      .which {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+      }
+      .which button {
+        font: 0.95rem var(--serif);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        padding: 0.3rem 0.9rem;
+        cursor: pointer;
+      }
+      .which button:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+      .which button:last-child {
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      .which button:hover {
+        color: var(--ink);
+      }
+      .which button[aria-pressed="true"] {
+        background: var(--tint);
+        color: var(--ink);
+      }
+      .which button:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 2px;
+      }
+      .which .b {
+        color: var(--nr);
+      }
+      .alabel.b {
+        fill: var(--nr);
+      }
+      .ant,
+      svg .rec path.ant {
+        fill: var(--nr);
+        stroke: none;
+      }
+      .rec.boundB path {
+        stroke: var(--nr);
+        stroke-width: 2;
+      }
+      .rec .ant {
+        opacity: 0;
+        transform: translateY(-34px);
+        transform-box: fill-box;
+        transition:
+          opacity 0.3s,
+          transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+      .rec.boundB .ant {
+        opacity: 1;
+        transform: none;
+      }
+      .key {
+        fill: var(--muted);
+        font: 14px var(--serif);
+        font-variant-numeric: tabular-nums;
+        dominant-baseline: central;
+      }
+      .key tspan {
+        font-weight: 600;
+        fill: var(--ink);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rec .ant {
+          transition: none;
+        }
+      }
+      /* schematic */
+      .sch-wrap {
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .zone {
+        fill: var(--muted);
+        font: 12px var(--serif);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .count {
+        fill: var(--ink);
+        font: 600 15px var(--serif);
+        text-anchor: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .cyto {
+        fill: var(--cyto);
+      }
+      .ecf {
+        fill: var(--paper);
+      }
+      .head {
+        fill: var(--lipid);
+      }
+      .tail {
+        stroke: var(--lipid);
+        stroke-width: 1.5;
+      }
+      .rec path {
+        fill: var(--tint);
+        stroke: var(--muted);
+        stroke-width: 1.25;
+        transition: stroke 0.3s;
+      }
+      .rec.bound path {
+        stroke: var(--r);
+        stroke-width: 2;
+      }
+      .lig {
+        fill: var(--r);
+      }
+      .free {
+        transition: opacity 0.3s;
+      }
+      .rec .lig {
+        opacity: 0;
+        transform: translateY(-34px);
+        transform-box: fill-box;
+        transition:
+          opacity 0.3s,
+          transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+      .rec.bound .lig {
+        opacity: 1;
+        transform: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rec .lig,
+        .free,
+        .rec path {
+          transition: none;
+        }
+      }
+      .back {
+        display: inline-flex;
+        gap: 0.4em;
+        margin-bottom: 0.9rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+      .back:hover {
+        color: var(--ink);
+      }
+      .back:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+      .back span {
+        transition: transform 0.15s;
+      }
+      .back:hover span {
+        transform: translateX(-3px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .back span {
+          transition: none;
+        }
+      }
+      .series {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        margin-top: 3rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+      }
+      .series a {
+        display: grid;
+        gap: 0.15rem;
+        color: inherit;
+        text-decoration: none;
+      }
+      .series .next {
+        margin-left: auto;
+        text-align: right;
+      }
+      .series .lbl {
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .series .nm {
+        font-weight: 600;
+      }
+      .series a:hover .nm {
+        color: var(--r);
+      }
+      .series a:focus-visible {
+        outline: 2px solid var(--r);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="../../#pharmacology"><span aria-hidden="true">←</span> Explorables</a>
+      <h1>Two Ligands</h1>
+      <div class="grid">
+        <div class="left">
+          <div class="which" role="group" aria-label="Occupancy plotted">
+            <button type="button" data-plot="A"><i>α</i><sub>A</sub></button
+            ><button type="button" data-plot="B" class="b"><i>α</i><sub>B</sub></button>
+          </div>
+          <svg id="graph" viewBox="0 0 400 280" role="img"></svg>
+          <div class="xscale" role="group" aria-label="x-axis scale">
+            <button type="button" data-scale="lin">Linear</button
+            ><button type="button" data-scale="log">Log</button>
+          </div>
+          <div class="sliders">
+            <label for="ac"
+              ><span>[A]</span
+              ><input id="ac" type="range" /><span id="acV"></span
+            ></label>
+            <label for="ka"
+              ><span>K<sub>A</sub></span
+              ><input
+                id="ka"
+                type="range"
+                min="6"
+                max="8.5"
+                step="0.05"
+                value="7" /><span id="kaV"></span
+            ></label>
+            <label for="bc" class="b"
+              ><span>[B]</span
+              ><input id="bc" type="range" /><span id="bcV"></span
+            ></label>
+            <label for="kb" class="b"
+              ><span>K<sub>B</sub></span
+              ><input
+                id="kb"
+                type="range"
+                min="6"
+                max="9"
+                step="0.05"
+                value="8" /><span id="kbV"></span
+            ></label>
+          </div>
+          <div class="formula" id="eq"></div>
+        </div>
+        <div class="right">
+          <div class="sch-wrap">
+            <svg
+              id="sch"
+              viewBox="0 0 600 430"
+              role="img"
+              aria-label="Membrane with receptors; spheres of A and diamonds of B compete for the same binding site"
+            ></svg>
+          </div>
+        </div>
+      </div>
+      <nav class="series" aria-label="Pharmacology series">
+        <a class="prev" href="../receptor-occupancy/">
+          <span class="lbl"><span aria-hidden="true">←</span> Previous</span>
+          <span class="nm">1 · Receptor Occupancy</span>
+        </a>
+        <a class="next" href="../saturation-binding/">
+          <span class="lbl">Next <span aria-hidden="true">→</span></span>
+          <span class="nm">3 · Saturation Binding</span>
+        </a>
+      </nav>
+    </main>
+
+    <script>
+      const slider = { A: document.getElementById("ac"), B: document.getElementById("bc") },
+        kaEl = document.getElementById("ka"),
+        kbEl = document.getElementById("kb");
+      const N = 16,
+        MAXFREE = 24; // free molecules of each ligand at the top of its slider
+
+      // x-axis scales, shared by both concentration sliders (nM, or log10 nM)
+      const pow10 = (e) =>
+        `10<tspan baseline-shift="super" font-size="9">${String(e).replace("-", "−")}</tspan>`;
+      const SCALES = {
+        lin: {
+          min: 0,
+          max: 2000,
+          step: 10,
+          to: (a) => a,
+          from: (v) => v,
+          ticks: [0, 500, 1000, 1500, 2000].map((v) => [v, v]),
+          unit: "nM",
+        },
+        log: {
+          min: -1,
+          max: 5,
+          step: 0.05,
+          to: Math.log10,
+          from: (v) => Math.pow(10, v),
+          ticks: [-1, 0, 1, 2, 3, 4, 5].map((v) => [v, pow10(v - 9)]),
+          unit: "M",
+        },
+      };
+      let scale = SCALES.log,
+        plot = "A";
+      const conc = { A: 316, B: 20 }; // nM
+
+      // Both ligands compete for the same site: each one's share of the receptors.
+      // x = K[conc] for each ligand (constants in M⁻¹, concentrations in nM)
+      const occ = (mine, other) => mine / (1 + mine + other);
+      // seeded RNG so the picture is identical on every load
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      const sci = (v) => {
+        // [mantissa, exponent]
+        if (v === 0) return ["0", 0];
+        const e = Math.floor(Math.log10(v));
+        return [(v / Math.pow(10, e)).toFixed(1), e];
+      };
+      const sciTxt = (v) => {
+        const [m, e] = sci(v);
+        const sup = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+        const s = String(Math.abs(e))
+          .split("")
+          .map((d) => sup[d])
+          .join("");
+        return `${m} × 10${e < 0 ? "⁻" : ""}${s}`;
+      };
+      const fmtConc = (nM) =>
+        nM === 0
+          ? "0 nM"
+          : nM < 1000
+            ? `${+nM.toPrecision(nM < 1 ? 2 : 3)} nM`
+            : `${+(nM / 1e3).toPrecision(3)} µM`;
+      const fmtX = (x) => (x === 0 ? "0" : +x.toPrecision(x < 10 ? 2 : 3));
+
+      // ---------- Graph: the chosen ligand's occupancy against its own concentration ----------
+      const G = { x0: 62, x1: 384, y0: 236, y1: 20 }; // room left of the ticks for the α label
+      const YMAX = 1.12;
+      const xv = (v) =>
+        G.x0 + ((v - scale.min) / (scale.max - scale.min)) * (G.x1 - G.x0);
+      const sx = (c) => xv(Math.min(scale.max, Math.max(scale.min, scale.to(c))));
+      const sy = (t) => G.y0 - (t / YMAX) * (G.y0 - G.y1);
+      const frac = (c) => (sx(c) - G.x0) / (G.x1 - G.x0); // slider position, 0 to 1
+      const graph = document.getElementById("graph");
+
+      function drawGraph(K) {
+        const me = plot,
+          other = me === "A" ? "B" : "A",
+          xOther = K[other] * conc[other] * 1e-9,
+          f = (c) => occ(K[me] * c * 1e-9, xOther),
+          cls = me === "B" ? " b" : "";
+        graph.setAttribute(
+          "aria-label",
+          `Occupancy by ${me} against the concentration of ${me}, with ${other} present`,
+        );
+        let s = "";
+        for (let t = 0; t <= 1.001; t += 0.25) {
+          s += `<line class="grid-l" x1="${G.x0}" x2="${G.x1}" y1="${sy(t)}" y2="${sy(t)}"/>`;
+          s += `<text class="tick y" x="${G.x0 - 8}" y="${sy(t)}">${t.toFixed(2)}</text>`;
+        }
+        for (const [v, label] of scale.ticks) {
+          s += `<line class="axis" x1="${xv(v)}" x2="${xv(v)}" y1="${G.y0}" y2="${G.y0 + 5}"/>`;
+          s += `<text class="tick" x="${xv(v)}" y="${G.y0 + 20}">${label}</text>`;
+        }
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x1}" y1="${G.y0}" y2="${G.y0}"/>`;
+        s += `<line class="axis" x1="${G.x0}" x2="${G.x0}" y1="${G.y0}" y2="${G.y1}"/>`;
+        s += `<text class="alabel${cls}" x="${(G.x0 + G.x1) / 2}" y="${G.y0 + 40}">[${me}] (${scale.unit})</text>`;
+        s += `<text class="alabel${cls}" x="12" y="${(G.y0 + G.y1) / 2}" dominant-baseline="central">α<tspan baseline-shift="sub" font-size="10" font-style="normal">${me}</tspan></text>`;
+        let d = "";
+        for (let i = 0; i <= 200; i++) {
+          const v = scale.min + ((scale.max - scale.min) * i) / 200;
+          d += (i ? "L" : "M") + xv(v).toFixed(1) + "," + sy(f(scale.from(v))).toFixed(1);
+        }
+        s += `<path class="curve${cls}" d="${d}"/>`;
+        const px = sx(conc[me]),
+          py = sy(f(conc[me]));
+        s += `<path class="drop" d="M${px},${G.y0} V${py} H${G.x0}"/>`;
+        s += `<circle class="pt${cls}" cx="${px}" cy="${py}" r="6"/>`;
+        graph.innerHTML = s;
+      }
+
+      function setFromPointer(e) {
+        const r = graph.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width) * 400;
+        const f = Math.min(1, Math.max(0, (x - G.x0) / (G.x1 - G.x0)));
+        slider[plot].value = scale.min + f * (scale.max - scale.min); // the slider snaps to its step
+        conc[plot] = scale.from(+slider[plot].value);
+        render();
+      }
+      for (const k of ["A", "B"])
+        slider[k].addEventListener("input", () => {
+          conc[k] = scale.from(+slider[k].value);
+          render();
+        });
+
+      const scaleBtns = document.querySelectorAll(".xscale button");
+      function setScale(key) {
+        scale = SCALES[key];
+        for (const k of ["A", "B"]) {
+          const inp = slider[k];
+          inp.min = scale.min;
+          inp.max = scale.max;
+          inp.step = scale.step;
+          inp.value = Math.max(scale.min, scale.to(conc[k])); // clamps and snaps to the new range (log10 0 = -∞)
+          conc[k] = scale.from(+inp.value);
+        }
+        scaleBtns.forEach((b) => b.setAttribute("aria-pressed", b.dataset.scale === key));
+        render();
+      }
+      scaleBtns.forEach((b) => b.addEventListener("click", () => setScale(b.dataset.scale)));
+      graph.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); // otherwise a drag can start a text selection
+        graph.setPointerCapture(e.pointerId);
+        setFromPointer(e);
+      });
+      graph.addEventListener("pointermove", (e) => {
+        if (graph.hasPointerCapture(e.pointerId)) setFromPointer(e);
+      });
+
+      const plotBtns = document.querySelectorAll(".which button");
+      plotBtns.forEach((b) =>
+        b.addEventListener("click", () => {
+          plot = b.dataset.plot;
+          plotBtns.forEach((c) => c.setAttribute("aria-pressed", c === b));
+          render();
+        }),
+      );
+      plotBtns.forEach((b) => b.setAttribute("aria-pressed", b.dataset.plot === plot));
+
+      // ---------- Schematic (static; built once, then toggled) ----------
+      const NS = "http://www.w3.org/2000/svg";
+      const sch = document.getElementById("sch");
+      const MEM_TOP = 296,
+        MEM_BOT = 346;
+      const el = (tag, attrs, parent) => {
+        const n = document.createElementNS(NS, tag);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        (parent || sch).appendChild(n);
+        return n;
+      };
+      const diamond = (x, y, h) =>
+        `M${x},${y - h} L${x + h},${y} L${x},${y + h} L${x - h},${y} Z`;
+
+      el("rect", { class: "ecf", x: 0, y: 0, width: 600, height: MEM_BOT });
+      el("rect", {
+        class: "cyto",
+        x: 0,
+        y: MEM_BOT,
+        width: 600,
+        height: 430 - MEM_BOT,
+      });
+      el("text", { class: "zone", x: 16, y: 26 }).textContent = "Extracellular";
+      el("text", { class: "zone", x: 16, y: 416 }).textContent =
+        "Intracellular";
+      // key: receptors held by each ligand
+      el("circle", { class: "lig", cx: 506, cy: 22, r: 5 });
+      el("path", { class: "ant", d: diamond(506, 44, 6) });
+      const keyA = el("text", { class: "key", x: 518, y: 22 }),
+        keyB = el("text", { class: "key", x: 518, y: 44 });
+      for (let x = 5; x < 600; x += 10) {
+        for (const [y1, y2] of [
+          [MEM_TOP + 4, MEM_TOP + 22],
+          [MEM_BOT - 22, MEM_BOT - 4],
+        ]) {
+          el("line", { class: "tail", x1: x - 1.5, y1, x2: x - 1.5, y2 });
+          el("line", { class: "tail", x1: x + 1.5, y1, x2: x + 1.5, y2 });
+        }
+        el("circle", { class: "head", cx: x, cy: MEM_TOP, r: 4.5 });
+        el("circle", { class: "head", cx: x, cy: MEM_BOT, r: 4.5 });
+      }
+
+      // receptors: one body, with the binding pocket cut into its top; A and B share the pocket
+      const recs = [],
+        gap = 600 / N,
+        w = 12,
+        nr = 8.5;
+      const T = MEM_TOP - 40,
+        B = MEM_BOT + 34;
+      for (let i = 0; i < N; i++) {
+        const x = gap / 2 + i * gap;
+        const g = el("g", { class: "rec" });
+        el(
+          "path",
+          {
+            d: `M${x - w},${B - 6} V${T + 5} Q${x - w},${T} ${x - w + 5},${T} H${x - nr} A${nr},${nr} 0 0 0 ${x + nr},${T} H${x + w - 5} Q${x + w},${T} ${x + w},${T + 5} V${B - 6} Q${x + w},${B} ${x + w - 6},${B} H${x - w + 6} Q${x - w},${B} ${x - w},${B - 6} Z`,
+          },
+          g,
+        );
+        el("circle", { class: "lig", cx: x, cy: T + 1, r: 7 }, g);
+        el("path", { class: "ant", d: diamond(x, T + 1, 8.4) }, g);
+        recs.push(g);
+      }
+      // fixed order: A fills from the front, B from the back, so neither shuffles the other
+      const order = [...Array(N).keys()]
+        .map((i) => [rnd(), i])
+        .sort((a, b) => a[0] - b[0])
+        .map((p) => p[1]);
+
+      // free molecules at fixed, non-overlapping positions, alternating A and B
+      const pts = [];
+      while (pts.length < 2 * MAXFREE) {
+        const p = { x: 20 + rnd() * 560, y: 48 + rnd() * (T - 78) };
+        if (p.x > 480 && p.y < 60) continue; // keep clear of the key
+        if (pts.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 20 ** 2))
+          pts.push(p);
+      }
+      const freeA = [],
+        freeB = [];
+      pts.forEach((p, i) =>
+        i % 2
+          ? freeB.push(el("path", { class: "ant free", d: diamond(p.x, p.y, 8.4), opacity: 0 }))
+          : freeA.push(el("circle", { class: "lig free", cx: p.x, cy: p.y, r: 7, opacity: 0 })),
+      );
+
+      function drawSchematic(xa, xb) {
+        const nA = Math.round(occ(xa, xb) * N),
+          nB = Math.min(N - nA, Math.round(occ(xb, xa) * N));
+        order.forEach((i, rank) => {
+          recs[i].classList.toggle("bound", rank < nA);
+          recs[i].classList.toggle("boundB", rank >= N - nB);
+        });
+        // free counts follow each slider's position, so they fill on either scale
+        const kA = Math.round(MAXFREE * frac(conc.A)),
+          kB = Math.round(MAXFREE * frac(conc.B));
+        freeA.forEach((c, i) => c.setAttribute("opacity", i < kA ? 1 : 0));
+        freeB.forEach((c, i) => c.setAttribute("opacity", i < kB ? 1 : 0));
+        keyA.innerHTML = `<tspan>${nA}</tspan> / ${N}`;
+        keyB.innerHTML = `<tspan>${nB}</tspan> / ${N}`;
+      }
+
+      // ---------- Render ----------
+      function render() {
+        const K = { A: Math.pow(10, +kaEl.value), B: Math.pow(10, +kbEl.value) },
+          xa = K.A * conc.A * 1e-9,
+          xb = K.B * conc.B * 1e-9;
+        document.getElementById("acV").textContent = fmtConc(conc.A);
+        document.getElementById("bcV").textContent = fmtConc(conc.B);
+        document.getElementById("kaV").textContent = `${sciTxt(K.A)} M⁻¹`;
+        document.getElementById("kbV").textContent = `${sciTxt(K.B)} M⁻¹`;
+        // the equation for the occupancy plotted, with K[conc] worked out for each ligand;
+        // the denominator is written the same way for both
+        const me = plot,
+          xm = me === "A" ? xa : xb,
+          a = fmtX(xa),
+          b = fmtX(xb);
+        katex.render(
+          `\\begin{aligned} \\alpha_${me} &= \\frac{K_${me}[${me}]}{1 + K_A[A] + K_B[B]} \\\\[0.8em] &= \\frac{${fmtX(xm)}}{1 + ${a} + ${b}} = \\mathbf{${(xm / (1 + xa + xb)).toFixed(3)}} \\end{aligned}`,
+          document.getElementById("eq"),
+          { displayMode: true, throwOnError: false },
+        );
+        drawGraph(K);
+        drawSchematic(xa, xb);
+      }
+      [kaEl, kbEl].forEach((s) => s.addEventListener("input", render));
+      setScale("log");
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="../../assets/qr.js"></script>
+  </body>
+</html>
